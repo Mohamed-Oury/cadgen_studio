@@ -100,6 +100,31 @@ class DXFParser:
                     except Exception as e:
                         pass
         
+        # 3. Extraire les autres calques pour affichage en arrière-plan
+        self.background_layers = {}
+        for entity in self.msp:
+            layer = entity.dxf.layer
+            # Ignorer les calques traités spécifiquement pour les lots
+            if layer in ['LOTS', 'LOTS_1', 'LOT', 'NOMLOT', 'NOMILOT']:
+                continue
+                
+            if layer not in self.background_layers:
+                self.background_layers[layer] = []
+                
+            if entity.dxftype() == 'LINE':
+                p1 = entity.dxf.start
+                p2 = entity.dxf.end
+                self.background_layers[layer].append({'type': 'line', 'points': [(p1.x, p1.y), (p2.x, p2.y)]})
+            elif entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
+                points = []
+                for p in entity.vertices():
+                    if hasattr(p, 'dxf'):
+                        points.append((p.dxf.location.x, p.dxf.location.y))
+                    else:
+                        points.append((p[0], p[1]))
+                if len(points) > 1:
+                    self.background_layers[layer].append({'type': 'polyline', 'points': points})
+        
         # Compter le nombre de lots
         total_lots = sum(len(i["lots"]) for i in self.ilots.values())
         return len(self.ilots), total_lots

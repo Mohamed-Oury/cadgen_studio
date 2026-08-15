@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsPolygonItem, QGraphicsItem, QGraphicsTextItem, QGraphicsRectItem
-from PySide6.QtGui import QPen, QBrush, QColor, QPolygonF, QPainter, QFont
+from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsPolygonItem, QGraphicsItem, QGraphicsTextItem, QGraphicsRectItem, QGraphicsPathItem
+from PySide6.QtGui import QPen, QBrush, QColor, QPolygonF, QPainter, QFont, QPainterPath
 from PySide6.QtCore import Qt, QPointF, Signal, QRectF
 
 class MapViewer(QGraphicsView):
@@ -24,16 +24,52 @@ class MapViewer(QGraphicsView):
 
         self.lot_items = {}
         self.text_items = []
+        self.layer_groups = {}
         
         self.preview_box_5000 = None
         self.preview_box_500 = None
 
         self.scene.selectionChanged.connect(self.on_selection_changed)
         
+    def draw_background_layers(self, layers_data):
+        self.layer_groups = {}
+        default_pen = QPen(QColor("#B0B0B0")) # Gris clair pour l'arrière-plan
+        default_pen.setWidth(0)
+        
+        for layer_name, entities in layers_data.items():
+            group = self.scene.createItemGroup([])
+            group.setZValue(-1) # En dessous des lots
+            
+            for ent in entities:
+                if ent['type'] == 'line':
+                    pts = ent['points']
+                    line = self.scene.addLine(pts[0][0], -pts[0][1], pts[1][0], -pts[1][1], default_pen)
+                    group.addToGroup(line)
+                elif ent['type'] == 'polyline':
+                    pts = ent['points']
+                    path = QPainterPath()
+                    if pts:
+                        path.moveTo(pts[0][0], -pts[0][1])
+                        for x, y in pts[1:]:
+                            path.lineTo(x, -y)
+                    path_item = self.scene.addPath(path, default_pen)
+                    group.addToGroup(path_item)
+            
+            self.layer_groups[layer_name] = group
+            
+    def toggle_layer(self, layer_name, visible):
+        if layer_name in self.layer_groups:
+            self.layer_groups[layer_name].setVisible(visible)
+
     def draw_lots(self, lots_data):
+        # We don't clear the whole scene here if we want to keep background layers
+        # But wait, draw_lots is usually called right after load. We should clear only lot_items?
+        # Actually, if we load a new file, we should clear the whole scene.
+        # But draw_lots is called before draw_background_layers. So clearing scene is fine.
         self.scene.clear()
         self.lot_items.clear()
         self.text_items.clear()
+        self.layer_groups.clear()
         self.preview_box_5000 = None
         self.preview_box_500 = None
         
@@ -94,6 +130,28 @@ class MapViewer(QGraphicsView):
                 
         # Fit view to scene
         self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
+
+    def zoom_to_selection(self):
+        selected_items = self.scene.selectedItems()
+        if not selected_items:
+            if self.scene.sceneRect().isValid() and self.scene.sceneRect().width() > 0:
+                self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
+            return
+            
+        bounding_rect = QRectF()
+        for item in selected_items:
+            if bounding_rect.isNull():
+                bounding_rect = item.sceneBoundingRect()
+            else:
+                bounding_rect = bounding_rect.united(item.sceneBoundingRect())
+                
+        margin_x = bounding_rect.width() * 0.1
+        margin_y = bounding_rect.height() * 0.1
+        if margin_x == 0: margin_x = 10
+        if margin_y == 0: margin_y = 10
+        
+        bounding_rect.adjust(-margin_x, -margin_y, margin_x, margin_y)
+        self.fitInView(bounding_rect, Qt.KeepAspectRatio)
 
     def wheelEvent(self, event):
         zoom_in_factor = 1.15

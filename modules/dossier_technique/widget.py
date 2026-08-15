@@ -3,7 +3,7 @@ import os
 import tempfile
 import webbrowser
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
-                             QFileDialog, QMessageBox, QStackedWidget, QComboBox, QSpinBox, QGroupBox, QFormLayout, QApplication, QScrollArea)
+                             QFileDialog, QMessageBox, QStackedWidget, QComboBox, QSpinBox, QGroupBox, QFormLayout, QApplication, QScrollArea, QListWidget, QListWidgetItem)
 from PySide6.QtCore import Qt
 from .core.dxf_parser import DXFParser
 from .core.dxf_exporter import DXFExporter
@@ -40,7 +40,28 @@ class DossierTechniqueWidget(QWidget):
         self.btn_load_dxf.clicked.connect(self.load_dxf)
         sel_layout.addWidget(self.btn_load_dxf)
         
-        sel_layout.addSpacing(20)
+        sel_layout.addSpacing(10)
+        
+        layer_header_layout = QHBoxLayout()
+        self.label_layers = QLabel("Calques d'arrière-plan:")
+        
+        self.btn_check_all = QPushButton("Tout cocher")
+        self.btn_uncheck_all = QPushButton("Tout décocher")
+        self.btn_check_all.clicked.connect(self.check_all_layers)
+        self.btn_uncheck_all.clicked.connect(self.uncheck_all_layers)
+        
+        layer_header_layout.addWidget(self.label_layers)
+        layer_header_layout.addStretch()
+        layer_header_layout.addWidget(self.btn_check_all)
+        layer_header_layout.addWidget(self.btn_uncheck_all)
+        
+        sel_layout.addLayout(layer_header_layout)
+        
+        self.layer_list = QListWidget()
+        self.layer_list.itemChanged.connect(self.on_layer_toggled)
+        sel_layout.addWidget(self.layer_list)
+        
+        sel_layout.addSpacing(10)
         
         self.label_sel_count = QLabel("0 lot(s) sélectionné(s)")
         sel_layout.addWidget(self.label_sel_count)
@@ -123,16 +144,23 @@ class DossierTechniqueWidget(QWidget):
         toolbar_layout.setContentsMargins(0, 10, 0, 0)
         
         self.label_coords = QLabel("X: ---  Y: ---")
+        self.btn_zoom_center = QPushButton("Centrer Sélection")
         self.btn_zoom_in = QPushButton("Zoom +")
         self.btn_zoom_out = QPushButton("Zoom -")
+        
+        self.btn_zoom_center.clicked.connect(self.zoom_center)
         self.btn_zoom_in.clicked.connect(self.zoom_in)
         self.btn_zoom_out.clicked.connect(self.zoom_out)
         
         toolbar_layout.addWidget(self.label_coords)
         toolbar_layout.addStretch()
+        toolbar_layout.addWidget(self.btn_zoom_center)
         toolbar_layout.addWidget(self.btn_zoom_out)
         toolbar_layout.addWidget(self.btn_zoom_in)
         map_layout.addWidget(toolbar_widget)
+
+    def zoom_center(self):
+        self.map_viewer.zoom_to_selection()
 
     def zoom_in(self):
         self.map_viewer.scale(1.15, 1.15)
@@ -148,6 +176,14 @@ class DossierTechniqueWidget(QWidget):
         count = len(lots)
         self.label_sel_count.setText(f"{count} lot(s) sélectionné(s)")
         self.btn_process.setEnabled(count > 0)
+        
+        # Synchronisation en mode édition
+        if self.left_stack.currentIndex() == 1 and count == 1:
+            ilot_name, lot_name = lots[0]
+            combo_text = f"Îlot: {ilot_name} - Lot: {lot_name}"
+            index = self.combo_lots.findText(combo_text)
+            if index >= 0:
+                self.combo_lots.setCurrentIndex(index)
 
     def go_to_edition(self):
         if not self.selected_lots_list:
@@ -176,8 +212,16 @@ class DossierTechniqueWidget(QWidget):
             return
             
         ilot_name, lot_name = self.combo_lots.currentData()
-        self.form_widget.input_ilot.setText(str(ilot_name))
-        self.form_widget.input_lot.setText(str(lot_name))
+        self.form_widget.lbl_ilot.setText(str(ilot_name))
+        self.form_widget.lbl_lot.setText(str(lot_name))
+        
+        # Mettre à jour la surface
+        if self.dxf_parser:
+            ilot = self.dxf_parser.ilots.get(ilot_name, {})
+            lot_info = ilot.get("lots", {}).get(lot_name)
+            if lot_info:
+                surface = lot_info['geom'].area
+                self.form_widget.lbl_surface.setText(f"{surface:.2f} m²")
         
         # Center map on this lot and update preview
         self.update_map_preview()
@@ -216,7 +260,7 @@ class DossierTechniqueWidget(QWidget):
     def load_dxf(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Sélectionner un fichier DXF", "", "Fichiers DXF (*.dxf)")
         if file_path:
-            self.label_info.setText(f"Analyse en cours: {os.path.basename(file_path)}...")
+            self.label_info.setText(f"Analyse en cours: {os.path.basename(file_path)}")
             QApplication.processEvents()
             
             try:
@@ -234,7 +278,22 @@ class DossierTechniqueWidget(QWidget):
                         return
                     
                     self.map_viewer.draw_lots(lots_data)
+                    self.map_viewer.draw_background_layers(self.dxf_parser.background_layers)
+                    
+                    # Populate layer list
+                    self.layer_list.blockSignals(True)
+                    self.layer_list.clear()
+                    for layer_name in sorted(self.dxf_parser.background_layers.keys()):
+                        item = QListWidgetItem(layer_name)
+                        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                        item.setCheckState(Qt.Checked)
+                        self.layer_list.addItem(item)
+                    self.layer_list.blockSignals(False)
+                    
                     self.label_info.setText(f"Fichier chargé: {os.path.basename(file_path)}")
+                    self.selected_lots_list = []
+                    self.on_selection_changed([])
+                    self.btn_process.setEnabled(False)
                 else:
                     QMessageBox.critical(self, "Erreur", msg)
                     self.label_info.setText("Erreur de chargement.")
@@ -242,6 +301,25 @@ class DossierTechniqueWidget(QWidget):
             except Exception as e:
                 QMessageBox.critical(self, "Erreur", f"Erreur lors de l'analyse du fichier DXF:\n{str(e)}")
                 self.label_info.setText("Erreur de chargement.")
+
+    def on_layer_toggled(self, item):
+        layer_name = item.text()
+        visible = (item.checkState() == Qt.Checked)
+        self.map_viewer.toggle_layer(layer_name, visible)
+
+    def check_all_layers(self):
+        self._set_all_layers_state(Qt.Checked)
+        
+    def uncheck_all_layers(self):
+        self._set_all_layers_state(Qt.Unchecked)
+        
+    def _set_all_layers_state(self, state):
+        self.layer_list.blockSignals(True)
+        for i in range(self.layer_list.count()):
+            item = self.layer_list.item(i)
+            item.setCheckState(state)
+            self.map_viewer.toggle_layer(item.text(), state == Qt.Checked)
+        self.layer_list.blockSignals(False)
 
     def preview_pdf(self):
         self._generate_pdf(preview=True)
