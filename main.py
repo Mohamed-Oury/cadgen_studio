@@ -1,14 +1,15 @@
 import sys
 from PySide6.QtWidgets import QApplication
-from ui.main_window import MainWindow
+from core.app_window import AppWindow
+from core.theme import QGIS_THEME
 
 def main():
     app = QApplication(sys.argv)
     
-    # Optional: Apply some basic styling
-    app.setStyle("Fusion")
+    # Set the QGIS light theme
+    app.setStyleSheet(QGIS_THEME)
     
-    window = MainWindow()
+    window = AppWindow()
     window.show()
     
     sys.exit(app.exec())

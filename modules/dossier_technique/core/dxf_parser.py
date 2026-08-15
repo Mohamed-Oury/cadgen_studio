@@ -86,7 +86,11 @@ class DXFParser:
                             # Si on a des polygones ILOT on pourrait faire poly_ilot.contains(poly)
                             
                             if ilot_name not in self.ilots:
-                                self.ilots[ilot_name] = {"geom": None, "lots": {}}
+                                self.ilots[ilot_name] = {"geom": None, "pos": None, "lots": {}}
+                                for txt, p in ilot_labels:
+                                    if txt == ilot_name:
+                                        self.ilots[ilot_name]["pos"] = (p.x, p.y)
+                                        break
                                 
                             self.ilots[ilot_name]["lots"][lot_name] = {
                                 "geom": poly,
