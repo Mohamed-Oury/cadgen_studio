@@ -40,3 +40,4 @@ pyqtdarktheme
 QtAwesome
 pyproj
 simplekml
+python-docx
