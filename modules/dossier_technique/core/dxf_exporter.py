@@ -1,4 +1,6 @@
+# pyrefly: ignore [missing-import]
 import ezdxf
+# pyrefly: ignore [missing-import]
 from ezdxf.enums import TextEntityAlignment
 import math
 import os

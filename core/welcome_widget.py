@@ -1,6 +1,10 @@
+ # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame, QGraphicsDropShadowEffect
+# pyrefly: ignore [missing-import]
 from PySide6.QtCore import Qt, Signal
+# pyrefly: ignore [missing-import]
 from PySide6.QtGui import QColor
+# pyrefly: ignore [missing-import]
 import qtawesome as qta
 
 class WelcomeWidget(QWidget):

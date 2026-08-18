@@ -1,7 +1,10 @@
 import os
+ # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                                  QLabel, QFileDialog, QMessageBox, QComboBox, QGroupBox)
+# pyrefly: ignore [missing-import]
 from PySide6.QtCore import Qt
+# pyrefly: ignore [missing-import]
 import qtawesome as qta
 from .core import KMLExporter
 

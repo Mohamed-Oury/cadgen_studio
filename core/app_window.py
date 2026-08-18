@@ -1,10 +1,13 @@
+ # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                                  QStackedWidget, QFrame, QPushButton, QLabel, QSizePolicy)
+# pyrefly: ignore [missing-import]
 from PySide6.QtCore import Qt, QSize
 from .welcome_widget import WelcomeWidget
 from modules.dossier_technique.widget import DossierTechniqueWidget
 from modules.export_kml.widget import ExportKMLWidget
 from modules.viewer_2d.widget import Viewer2DWidget
+# pyrefly: ignore [missing-import]
 import qtawesome as qta
 
 class AppWindow(QMainWindow):

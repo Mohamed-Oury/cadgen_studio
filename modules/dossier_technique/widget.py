@@ -2,8 +2,10 @@ import sys
 import os
 import tempfile
 import webbrowser
+# pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
                              QFileDialog, QMessageBox, QStackedWidget, QComboBox, QSpinBox, QGroupBox, QFormLayout, QApplication, QScrollArea, QListWidget, QListWidgetItem)
+# pyrefly: ignore [missing-import]
 from PySide6.QtCore import Qt
 from .core.dxf_parser import DXFParser
 from .core.dxf_exporter import DXFExporter
@@ -11,6 +13,7 @@ from .core.word_generator import WordGenerator
 from .pdf.pdf_generator import PDFGenerator
 from .ui.map_viewer import MapViewer
 from .ui.form_widget import FormWidget
+from modules.viewer_2d.widget import LayersDialog
 
 class DossierTechniqueWidget(QWidget):
 
@@ -42,24 +45,13 @@ class DossierTechniqueWidget(QWidget):
         
         sel_layout.addSpacing(10)
         
-        layer_header_layout = QHBoxLayout()
-        self.label_layers = QLabel("Calques d'arrière-plan:")
-        
-        self.btn_check_all = QPushButton("Tout cocher")
-        self.btn_uncheck_all = QPushButton("Tout décocher")
-        self.btn_check_all.clicked.connect(self.check_all_layers)
-        self.btn_uncheck_all.clicked.connect(self.uncheck_all_layers)
-        
-        layer_header_layout.addWidget(self.label_layers)
-        layer_header_layout.addStretch()
-        layer_header_layout.addWidget(self.btn_check_all)
-        layer_header_layout.addWidget(self.btn_uncheck_all)
-        
-        sel_layout.addLayout(layer_header_layout)
-        
-        self.layer_list = QListWidget()
-        self.layer_list.itemChanged.connect(self.on_layer_toggled)
-        sel_layout.addWidget(self.layer_list)
+        self.btn_layers = QPushButton(" Calques d'arrière-plan")
+        # pyrefly: ignore [missing-import]
+        import qtawesome as qta
+        self.btn_layers.setIcon(qta.icon('fa5s.layer-group'))
+        self.btn_layers.clicked.connect(self._open_layers_dialog)
+        self.btn_layers.setEnabled(False)
+        sel_layout.addWidget(self.btn_layers)
         
         sel_layout.addSpacing(10)
         
@@ -286,15 +278,8 @@ class DossierTechniqueWidget(QWidget):
                     self.map_viewer.draw_lots(lots_data)
                     self.map_viewer.draw_background_layers(self.dxf_parser.background_layers)
                     
-                    # Populate layer list
-                    self.layer_list.blockSignals(True)
-                    self.layer_list.clear()
-                    for layer_name in sorted(self.dxf_parser.background_layers.keys()):
-                        item = QListWidgetItem(layer_name)
-                        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                        item.setCheckState(Qt.Checked)
-                        self.layer_list.addItem(item)
-                    self.layer_list.blockSignals(False)
+                    self.btn_layers.setEnabled(True)
+                    self.visible_layers = set(self.dxf_parser.background_layers.keys())
                     
                     self.label_info.setText(f"Fichier chargé: {os.path.basename(file_path)}")
                     self.selected_lots_list = []
@@ -308,24 +293,26 @@ class DossierTechniqueWidget(QWidget):
                 QMessageBox.critical(self, "Erreur", f"Erreur lors de l'analyse du fichier DXF:\n{str(e)}")
                 self.label_info.setText("Erreur de chargement.")
 
-    def on_layer_toggled(self, item):
-        layer_name = item.text()
-        visible = (item.checkState() == Qt.Checked)
-        self.map_viewer.toggle_layer(layer_name, visible)
-
-    def check_all_layers(self):
-        self._set_all_layers_state(Qt.Checked)
+    def _open_layers_dialog(self):
+        all_layers = list(self.dxf_parser.background_layers.keys())
+        if not all_layers:
+            return
+            
+        from PySide6.QtWidgets import QDialog
+        dialog = LayersDialog(all_layers, self)
         
-    def uncheck_all_layers(self):
-        self._set_all_layers_state(Qt.Unchecked)
+        if not hasattr(self, 'visible_layers'):
+            self.visible_layers = set(all_layers)
+            
+        dialog.set_visible_layers(self.visible_layers)
         
-    def _set_all_layers_state(self, state):
-        self.layer_list.blockSignals(True)
-        for i in range(self.layer_list.count()):
-            item = self.layer_list.item(i)
-            item.setCheckState(state)
-            self.map_viewer.toggle_layer(item.text(), state == Qt.Checked)
-        self.layer_list.blockSignals(False)
+        def on_layers_changed(visible):
+            self.visible_layers = visible
+            for layer_name in all_layers:
+                self.map_viewer.toggle_layer(layer_name, layer_name in self.visible_layers)
+                
+        dialog.layers_changed.connect(on_layers_changed)
+        dialog.exec()
 
     def preview_pdf(self):
         self._generate_pdf(preview=True)

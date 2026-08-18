@@ -1,5 +1,8 @@
+ # pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsPolygonItem, QGraphicsItem, QGraphicsTextItem, QGraphicsRectItem, QGraphicsPathItem
+# pyrefly: ignore [missing-import]
 from PySide6.QtGui import QPen, QBrush, QColor, QPolygonF, QPainter, QFont, QPainterPath
+# pyrefly: ignore [missing-import]
 from PySide6.QtCore import Qt, QPointF, Signal, QRectF
 
 class MapViewer(QGraphicsView):

@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QFormLayout, QLineEdit, 
                              QPushButton, QGroupBox, QLabel, QHBoxLayout, QComboBox)
 

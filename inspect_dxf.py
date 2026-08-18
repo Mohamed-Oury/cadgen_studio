@@ -1,4 +1,5 @@
 import sys
+# pyrefly: ignore [missing-import]
 import ezdxf
 
 def inspect_dxf(filepath):

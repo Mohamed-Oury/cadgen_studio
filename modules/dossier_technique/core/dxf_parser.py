@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 import ezdxf
 from shapely.geometry import Polygon, Point
 

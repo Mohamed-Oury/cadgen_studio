@@ -1,6 +1,7 @@
 import os
 import math
 from io import BytesIO
+# pyrefly: ignore [missing-import]
 import matplotlib.pyplot as plt
 from docx import Document
 from docx.shared import Pt, Inches, Cm

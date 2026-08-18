@@ -1,5 +1,7 @@
 import sys
+# pyrefly: ignore [missing-import]
 import qdarktheme
+# pyrefly: ignore [missing-import]
 from PySide6.QtWidgets import QApplication
 from core.app_window import AppWindow
 

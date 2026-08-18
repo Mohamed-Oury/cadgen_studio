@@ -1,9 +1,12 @@
 import os
 import base64
+# pyrefly: ignore [missing-import]
 import matplotlib.pyplot as plt
 import math
 from io import BytesIO
+# pyrefly: ignore [missing-import]
 from jinja2 import Template
+# pyrefly: ignore [missing-import]
 from weasyprint import HTML, CSS
 
 class PDFGenerator:
