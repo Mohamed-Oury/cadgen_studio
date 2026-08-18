@@ -32,5 +32,5 @@ jobs:
     - name: Upload EXE artifact
       uses: actions/upload-artifact@v4
       with:
-        name: CadGen_Studio_Windows_EXE
+        name: CadGen_Studio
         path: dist/main.exe

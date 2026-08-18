@@ -1,13 +1,13 @@
 import sys
+import qdarktheme
 from PySide6.QtWidgets import QApplication
 from core.app_window import AppWindow
-from core.theme import QGIS_THEME
 
 def main():
     app = QApplication(sys.argv)
     
-    # Set the QGIS light theme
-    app.setStyleSheet(QGIS_THEME)
+    # Setup modern theme (auto sync with OS) with Emerald Green primary color
+    qdarktheme.setup_theme("auto", custom_colors={"primary": "#2ECC71"})
     
     window = AppWindow()
     window.show()
