@@ -38,3 +38,5 @@ zipp==3.23.1
 zopfli==0.2.3.post1
 pyqtdarktheme
 QtAwesome
+pyproj
+simplekml

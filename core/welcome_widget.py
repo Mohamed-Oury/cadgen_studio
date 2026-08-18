@@ -42,6 +42,24 @@ class WelcomeWidget(QWidget):
             module_id="generation-dossier-technique"
         )
         cards_layout.addWidget(card1)
+
+        # Card 2: Export KML
+        card2 = self.create_module_card(
+            title="Export Google Earth",
+            desc="Convertir vos plans DXF en KML/KMZ pour visualisation spatiale.",
+            icon_name="fa5s.globe-africa",
+            module_id="export-kml"
+        )
+        cards_layout.addWidget(card2)
+        
+        # Card 3: Visionneuse 2D
+        card3 = self.create_module_card(
+            title="Visionneuse 2D",
+            desc="Visualiser et mesurer des distances et surfaces sur vos DXF.",
+            icon_name="fa5s.search-location",
+            module_id="viewer-2d"
+        )
+        cards_layout.addWidget(card3)
         
         main_layout.addLayout(cards_layout)
 

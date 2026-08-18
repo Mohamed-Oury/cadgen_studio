@@ -27,10 +27,10 @@ jobs:
 
     - name: Build with PyInstaller
       run: |
-        pyinstaller --noconsole --onefile main.py
+        pyinstaller --noconsole --onefile --name cadGen --hidden-import docx main.py
 
     - name: Upload EXE artifact
       uses: actions/upload-artifact@v4
       with:
         name: CadGen_Studio
-        path: dist/main.exe
+        path: dist/cadGen.exe
