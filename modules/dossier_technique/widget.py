@@ -85,14 +85,19 @@ class DossierTechniqueWidget(QWidget):
         
         ed_layout.addSpacing(10)
         
+        # Scrollable Content
+        self.edition_content_widget = QWidget()
+        edition_content_layout = QVBoxLayout(self.edition_content_widget)
+        edition_content_layout.setContentsMargins(0, 0, 0, 0)
+        
         # Lot selector
         self.combo_lots = QComboBox()
         self.combo_lots.currentIndexChanged.connect(self.on_edition_lot_changed)
-        ed_layout.addWidget(QLabel("Lot en cours d'édition :"))
-        ed_layout.addWidget(self.combo_lots)
+        edition_content_layout.addWidget(QLabel("Lot en cours d'édition :"))
+        edition_content_layout.addWidget(self.combo_lots)
         
         # Scale inputs
-        scale_group = QGroupBox("Échelles & Aperçu")
+        scale_group = QGroupBox("Échelles Aperçu")
         scale_layout = QFormLayout(scale_group)
         
         self.spin_scale_5000 = QSpinBox()
@@ -109,14 +114,15 @@ class DossierTechniqueWidget(QWidget):
         
         scale_layout.addRow("Échelle globale (1/) :", self.spin_scale_5000)
         scale_layout.addRow("Échelle détaillée (1/) :", self.spin_scale_500)
-        ed_layout.addWidget(scale_group)
+        edition_content_layout.addWidget(scale_group)
         
         self.form_widget = FormWidget()
+        edition_content_layout.addWidget(self.form_widget)
         
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QScrollArea.NoFrame)
-        self.scroll_area.setWidget(self.form_widget)
+        self.scroll_area.setWidget(self.edition_content_widget)
         ed_layout.addWidget(self.scroll_area)
         
         self.form_widget.btn_preview.clicked.connect(self.preview_pdf)
