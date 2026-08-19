@@ -14,7 +14,7 @@ class AppWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("CadGen Studio")
-        self.resize(1280, 800)
+        self.setMinimumSize(1100, 700)
         
         # Base style for sidebar and main window
         self.setStyleSheet("""
@@ -59,7 +59,7 @@ class AppWindow(QMainWindow):
         # 1. Sidebar
         self.sidebar = QFrame()
         self.sidebar.setObjectName("Sidebar")
-        self.sidebar.setFixedWidth(210)
+        self.sidebar.setFixedWidth(240)
         sidebar_layout = QVBoxLayout(self.sidebar)
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         sidebar_layout.setSpacing(5)

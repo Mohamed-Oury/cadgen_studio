@@ -55,11 +55,15 @@ class DXFParser:
         for entity in lots_entities:
             if entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
                 points = []
-                for p in entity.vertices():
-                    if hasattr(p, 'dxf'):
-                        points.append((p.dxf.location.x, p.dxf.location.y))
-                    else:
+                if entity.dxftype() == 'LWPOLYLINE':
+                    for p in entity: # LWPOLYLINE yields (x, y, start_width, end_width, bulge)
                         points.append((p[0], p[1]))
+                else:
+                    for p in entity.vertices():
+                        if hasattr(p, 'dxf'):
+                            points.append((p.dxf.location.x, p.dxf.location.y))
+                        else:
+                            points.append((p[0], p[1]))
                 
                 if len(points) >= 3:
                     try:

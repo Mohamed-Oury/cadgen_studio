@@ -17,7 +17,7 @@ from shapely.geometry import Point, Polygon
 class InteractiveDXFView(QGraphicsView):
     # Signals to communicate with the widget
     distance_measured = Signal(float)
-    lot_info_found = Signal(str, float) # nom, surface
+    lot_info_found = Signal(str, float, str, str) # title, area, lot_name, ilot_name
     lot_coords_found = Signal(str, list) # nom, liste de (X, Y)
     
     def __init__(self):
@@ -38,10 +38,10 @@ class InteractiveDXFView(QGraphicsView):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         
-        # Black background for debugging
-        self.setBackgroundBrush(QBrush(QColor("black")))
+        # Grid background for better visibility
+        self.setBackgroundBrush(QBrush(QColor("#F5F6FA"))) # Light gray/white background
         
-        # Modes: "nav", "distance", "area", "coords"
+        # Modes: "nav", "distance", "area", "coords", "info"
         self.current_mode = "nav"
         
         # State for distance measurement
@@ -51,6 +51,7 @@ class InteractiveDXFView(QGraphicsView):
         # State for lot parsing
         self.dxf_parser = None
         self.highlighted_poly = None
+        self.thematic_polys = []
         self._last_view_rect = None
 
     def resizeEvent(self, event):
@@ -64,6 +65,7 @@ class InteractiveDXFView(QGraphicsView):
         self.measure_points = []
         self.measure_line = None
         self.highlighted_poly = None
+        self.thematic_polys = []
         self.dxf_parser = dxf_parser
         self._last_view_rect = None
         self._is_loaded = False
@@ -90,16 +92,17 @@ class InteractiveDXFView(QGraphicsView):
         is_first_load = not getattr(self, '_is_loaded', False)
         
         self.scene.clear()
+        self.thematic_polys = []
         
         msp = self.doc.modelspace()
         
         # Setup ezdxf render context and backend
         ctx = RenderContext(self.doc)
         
-        # Configuration: set background to black for debugging
+        # Configuration: set background to light gray
         cfg = config.Configuration(
             background_policy=config.BackgroundPolicy.CUSTOM,
-            custom_bg_color="#000000",
+            custom_bg_color="#F5F6FA",
             color_policy=config.ColorPolicy.COLOR,
         )
         
@@ -122,8 +125,10 @@ class InteractiveDXFView(QGraphicsView):
         
         # Determine the best view rect to zoom to
         view_rect = None
+        min_x, min_y, max_x, max_y = float('inf'), float('inf'), float('-inf'), float('-inf')
+        
+        # Check if we parsed any lots
         if self.dxf_parser and hasattr(self.dxf_parser, 'ilots') and self.dxf_parser.ilots:
-            min_x, min_y, max_x, max_y = float('inf'), float('inf'), float('-inf'), float('-inf')
             for ilot in self.dxf_parser.ilots.values():
                 for lot in ilot.get('lots', {}).values():
                     poly = lot.get('geom')
@@ -135,41 +140,43 @@ class InteractiveDXFView(QGraphicsView):
                         max_y = max(max_y, bounds[3])
             
             if min_x != float('inf'):
-                # Don't flip Y axis manually, let the view scale do it
                 view_rect = QRectF(QPointF(min_x, min_y), QPointF(max_x, max_y))
-        
-        # If no lots found, compute custom bounding box ignoring outliers
+                
         if not view_rect:
-            min_x, min_y, max_x, max_y = float('inf'), float('inf'), float('-inf'), float('-inf')
-            # pyrefly: ignore [missing-import]
-            from ezdxf import bbox
+            # Fallback: robustly calculate bounding box from scene items
+            # Filter out outliers (e.g. origin points at 0,0)
+            items = self.scene.items()
+            valid_rects = []
             
-            boxes = []
-            for entity in msp:
-                ext = bbox.extents([entity])
-                if ext.has_data:
-                    boxes.append(ext)
-            
-            if boxes:
-                # Find the median center of all elements
-                centers_x = [(ext.extmin.x + ext.extmax.x)/2 for ext in boxes]
-                centers_y = [(ext.extmin.y + ext.extmax.y)/2 for ext in boxes]
+            for item in items:
+                rect = item.sceneBoundingRect()
+                # Ignore empty rects or excessively large background items
+                if rect.width() > 0 and rect.height() > 0 and rect.width() < 1000000:
+                    valid_rects.append(rect)
+                    
+            if valid_rects:
+                # Find the center of mass of all rects
+                centers_x = [r.center().x() for r in valid_rects]
+                centers_y = [r.center().y() for r in valid_rects]
                 centers_x.sort()
                 centers_y.sort()
+                
+                # Use median as a robust center
                 median_x = centers_x[len(centers_x)//2]
                 median_y = centers_y[len(centers_y)//2]
-
-                # Only keep elements whose center is within 50km of the median center
-                # This safely ignores any stray lines drawn to (0,0) or points at infinity
-                for ext in boxes:
-                    cx = (ext.extmin.x + ext.extmax.x)/2
-                    cy = (ext.extmin.y + ext.extmax.y)/2
-                    if abs(cx - median_x) < 50000 and abs(cy - median_y) < 50000:
-                        min_x = min(min_x, ext.extmin.x)
-                        min_y = min(min_y, ext.extmin.y)
-                        max_x = max(max_x, ext.extmax.x)
-                        max_y = max(max_y, ext.extmax.y)
-
+                
+                # Keep rects that are within a reasonable distance from the median
+                # e.g. within 200,000 units (to allow large cities but exclude (0,0) if we are at 500,000)
+                for rect in valid_rects:
+                    cx = rect.center().x()
+                    cy = rect.center().y()
+                    
+                    if abs(cx - median_x) < 200000 and abs(cy - median_y) < 200000:
+                        min_x = min(min_x, rect.left())
+                        min_y = min(min_y, rect.top())
+                        max_x = max(max_x, rect.right())
+                        max_y = max(max_y, rect.bottom())
+                        
             if min_x != float('inf'):
                 view_rect = QRectF(QPointF(min_x, min_y), QPointF(max_x, max_y))
             else:
@@ -185,6 +192,73 @@ class InteractiveDXFView(QGraphicsView):
         
         # Use QTimer to ensure the layout has updated before fitting in view
         QTimer.singleShot(100, lambda: self.fitInView(view_rect, Qt.KeepAspectRatio))
+
+    def apply_theme(self, theme_mode, attributes_db):
+        # Clear existing thematic polys
+        for item in self.thematic_polys:
+            self.scene.removeItem(item)
+        self.thematic_polys.clear()
+
+        if theme_mode == "Aucun" or not hasattr(self, 'doc') or not self.doc:
+            return
+
+        polygons_to_theme = []
+
+        if self.dxf_parser and hasattr(self.dxf_parser, 'ilots') and self.dxf_parser.ilots:
+            for ilot_name, ilot_data in self.dxf_parser.ilots.items():
+                for lot_name, lot_data in ilot_data["lots"].items():
+                    polygons_to_theme.append((ilot_name, lot_name, lot_data["geom"]))
+        else:
+            # Fallback
+            msp = self.doc.modelspace()
+            for entity in msp:
+                if entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
+                    points = []
+                    for p in entity.vertices():
+                        if hasattr(p, 'dxf'):
+                            points.append((p.dxf.location.x, p.dxf.location.y))
+                        else:
+                            points.append((p[0], p[1]))
+                    if len(points) >= 3:
+                        try:
+                            poly = Polygon(points)
+                            if poly.is_valid and poly.area > 0:
+                                cx, cy = int(poly.centroid.x), int(poly.centroid.y)
+                                polygons_to_theme.append((entity.dxf.layer, f"Poly_{cx}_{cy}", poly))
+                        except Exception:
+                            pass
+
+        for ilot_name, lot_name, poly in polygons_to_theme:
+            lot_id = f"{ilot_name}|{lot_name}"
+            data = attributes_db.get(lot_id, {})
+            
+            color = None
+            if theme_mode == "Par Surface":
+                area = data.get("surface", poly.area)
+                if area < 300:
+                    color = QColor(231, 76, 60, 150) # Red
+                elif area <= 500:
+                    color = QColor(241, 196, 15, 150) # Yellow
+                else:
+                    color = QColor(46, 204, 113, 150) # Green
+            elif theme_mode == "Par Statut":
+                statut = data.get("statut", "Disponible")
+                if statut == "Disponible":
+                    color = QColor(46, 204, 113, 150) # Green
+                elif statut == "Réservé":
+                    color = QColor(243, 156, 18, 150) # Orange
+                elif statut == "Vendu":
+                    color = QColor(231, 76, 60, 150) # Red
+            
+            if color:
+                coords = list(poly.exterior.coords)
+                qpoly = QPolygonF()
+                for coord in coords:
+                    qpoly.append(QPointF(coord[0], coord[1]))
+                
+                item = self.scene.addPolygon(qpoly, QPen(Qt.NoPen), QBrush(color))
+                self.thematic_polys.append(item)
+
     def zoom_extents(self):
         if self._last_view_rect:
             self.fitInView(self._last_view_rect, Qt.KeepAspectRatio)
@@ -214,7 +288,7 @@ class InteractiveDXFView(QGraphicsView):
         elif mode == "distance":
             self.setDragMode(QGraphicsView.NoDrag)
             self.setCursor(Qt.CrossCursor)
-        elif mode in ("area", "coords"):
+        elif mode in ("area", "coords", "info"):
             self.setDragMode(QGraphicsView.NoDrag)
             self.setCursor(Qt.PointingHandCursor)
 
@@ -236,7 +310,7 @@ class InteractiveDXFView(QGraphicsView):
             
             if self.current_mode == "distance":
                 self.handle_distance_click(scene_pos)
-            elif self.current_mode == "area":
+            elif self.current_mode in ["area", "info"]:
                 self.handle_area_click(scene_pos)
             elif self.current_mode == "coords":
                 self.handle_coords_click(scene_pos)
@@ -285,7 +359,7 @@ class InteractiveDXFView(QGraphicsView):
 
     def handle_area_click(self, scene_pos):
         dxf_x = scene_pos.x()
-        dxf_y = -scene_pos.y()
+        dxf_y = scene_pos.y()
         click_point = Point(dxf_x, dxf_y)
         
         found_lot = None
@@ -306,6 +380,9 @@ class InteractiveDXFView(QGraphicsView):
                     break
                     
         # Fallback : chercher n'importe quel polygone fermé dans le DXF
+        closest_poly = None
+        min_dist_to_poly = float('inf')
+        
         if not found_geom and hasattr(self, 'doc') and self.doc:
             msp = self.doc.modelspace()
             # Chercher le plus petit polygone contenant le point
@@ -314,28 +391,41 @@ class InteractiveDXFView(QGraphicsView):
             for entity in msp:
                 if entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
                     points = []
-                    for p in entity.vertices():
-                        if hasattr(p, 'dxf'):
-                            points.append((p.dxf.location.x, p.dxf.location.y))
-                        else:
+                    if entity.dxftype() == 'LWPOLYLINE':
+                        for p in entity: # LWPOLYLINE yields (x, y, start_width, end_width, bulge)
                             points.append((p[0], p[1]))
+                    else:
+                        for p in entity.vertices():
+                            if hasattr(p, 'dxf'):
+                                points.append((p.dxf.location.x, p.dxf.location.y))
+                            else:
+                                points.append((p[0], p[1]))
                             
                     if len(points) >= 3:
                         try:
                             poly = Polygon(points)
-                            if poly.is_valid and poly.area > 0 and poly.contains(click_point):
-                                if poly.area < min_area:
-                                    min_area = poly.area
-                                    found_geom = poly
-                                    found_lot = "Polygone Inconnu"
-                                    found_ilot = entity.dxf.layer
+                            if not poly.is_valid:
+                                poly = poly.buffer(0)
+                            if poly.is_valid and poly.area > 0:
+                                if poly.contains(click_point):
+                                    if poly.area < min_area:
+                                        min_area = poly.area
+                                        found_geom = poly
+                                        found_lot = "Polygone Inconnu"
+                                        found_ilot = entity.dxf.layer
+                                else:
+                                    # Calculate distance to boundary for debugging
+                                    dist = poly.distance(click_point)
+                                    if dist < min_dist_to_poly:
+                                        min_dist_to_poly = dist
+                                        closest_poly = poly
                         except Exception:
                             pass
                             
         if found_lot and found_geom:
             area = found_geom.area
-            title = f"Calque: {found_ilot}" if found_lot == "Polygone Inconnu" else f"Îlot: {found_ilot} | Lot: {found_lot}"
-            self.lot_info_found.emit(title, area)
+            title = f"Calque: {found_ilot} | Lot: {found_lot}"
+            self.lot_info_found.emit(title, area, found_lot, found_ilot)
             
             # Highlight the polygon
             if self.highlighted_poly:
@@ -344,7 +434,7 @@ class InteractiveDXFView(QGraphicsView):
             coords = list(found_geom.exterior.coords)
             qpoly = QPolygonF()
             for coord in coords:
-                qpoly.append(QPointF(coord[0], -coord[1]))
+                qpoly.append(QPointF(coord[0], coord[1]))
                 
             self.highlighted_poly = QGraphicsPolygonItem(qpoly)
             
@@ -358,14 +448,18 @@ class InteractiveDXFView(QGraphicsView):
             
             self.scene.addItem(self.highlighted_poly)
         else:
-            self.lot_info_found.emit("Aucun lot trouvé à cet emplacement", 0.0)
+            if min_dist_to_poly != float('inf'):
+                msg = f"Aucun lot à cet emplacement. (Polygone le plus proche à {min_dist_to_poly:.2f} unités, point cliqué: {dxf_x:.2f}, {dxf_y:.2f})"
+            else:
+                msg = f"Aucun lot trouvé. (Aucun polygone détecté dans le fichier, point cliqué: {dxf_x:.2f}, {dxf_y:.2f})"
+            self.lot_info_found.emit(msg, 0.0, "", "")
             if self.highlighted_poly:
                 self.scene.removeItem(self.highlighted_poly)
                 self.highlighted_poly = None
 
     def handle_coords_click(self, scene_pos):
         dxf_x = scene_pos.x()
-        dxf_y = -scene_pos.y()
+        dxf_y = scene_pos.y()
         click_point = Point(dxf_x, dxf_y)
         
         found_lot = None
@@ -413,7 +507,7 @@ class InteractiveDXFView(QGraphicsView):
                 
         if found_geom:
             coords = list(found_geom.exterior.coords)
-            title = f"Calque: {found_ilot}" if found_lot == "Polygone Inconnu" else f"Îlot: {found_ilot} | Lot: {found_lot}"
+            title = f"Calque: {found_ilot} | Lot: {found_lot}"
             self.lot_coords_found.emit(title, coords)
             
             # Highlight the polygon
@@ -422,7 +516,7 @@ class InteractiveDXFView(QGraphicsView):
                 
             qpoly = QPolygonF()
             for coord in coords:
-                qpoly.append(QPointF(coord[0], -coord[1]))
+                qpoly.append(QPointF(coord[0], coord[1]))
                 
             self.highlighted_poly = QGraphicsPolygonItem(qpoly)
             
