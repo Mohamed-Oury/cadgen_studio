@@ -6,8 +6,6 @@ import math
 from io import BytesIO
 # pyrefly: ignore [missing-import]
 from jinja2 import Template
-# pyrefly: ignore [missing-import]
-from weasyprint import HTML, CSS
 
 class PDFGenerator:
     def __init__(self, output_dir="."):
@@ -758,5 +756,10 @@ class PDFGenerator:
         )
         
         output_path = os.path.join(self.output_dir, filename)
-        HTML(string=html_out).write_pdf(output_path)
-        return output_path
+        
+        try:
+            from weasyprint import HTML
+            HTML(string=html_out).write_pdf(output_path)
+            return output_path
+        except ImportError as e:
+            raise Exception("Impossible de générer le PDF. L'export PDF nécessite la librairie GTK3 installée sur votre système (WeasyPrint error).") from e
