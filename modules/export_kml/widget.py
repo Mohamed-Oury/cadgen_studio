@@ -82,8 +82,9 @@ class ExportKMLWidget(QWidget):
                 background-color: palette(mid);
             }
         """)
+        self.btn_export.setMinimumWidth(250)
         self.btn_export.clicked.connect(self._export_kml)
-        layout.addWidget(self.btn_export, alignment=Qt.AlignRight)
+        layout.addWidget(self.btn_export, alignment=Qt.AlignLeft)
 
         layout.addStretch()
 
