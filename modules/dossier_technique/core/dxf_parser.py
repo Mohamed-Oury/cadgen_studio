@@ -26,14 +26,31 @@ class DXFParser:
 
     def extract_lots_and_ilots(self):
         """
-        Extrait les géométries des lots (calque 'L') et les associe aux 
+        Extrait les géométries des lots et les associe aux 
         textes (NOMLOT, NOMILOT) via des tests d'inclusion spatiale.
         """
         self.ilots = {}
         
-        lots_entities = self.get_layer_entities("L")
-        ilot_texts = self.get_layer_entities("NOMILOT")
-        lot_texts = self.get_layer_entities("NOMLOT")
+        lots_entities = []
+        ilot_texts = []
+        lot_texts = []
+        
+        # 0. Collecte flexible des entités basée sur des mots clés
+        for e in self.msp:
+            try:
+                layer = e.dxf.layer.upper()
+            except Exception:
+                continue
+                
+            if e.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
+                if layer == 'L' or 'LOT' in layer or 'PARCEL' in layer:
+                    lots_entities.append(e)
+            elif e.dxftype() in ('TEXT', 'MTEXT'):
+                if 'ILOT' in layer:
+                    ilot_texts.append(e)
+                elif 'LOT' in layer or 'PARCEL' in layer or layer in ['TEXT', 'TEXTE', 'NUM', '0']:
+                    if 'ILOT' not in layer:
+                        lot_texts.append(e)
         
         # 1. Extraire les points des textes
         ilot_labels = []
@@ -107,10 +124,24 @@ class DXFParser:
         
         # 3. Extraire les autres calques pour affichage en arrière-plan
         self.background_layers = {}
+        
+        # Identifier dynamiquement les calques utilisés pour les lots/textes pour ne pas les dessiner en double
+        lot_layer_names = set()
+        for e in lots_entities + ilot_texts + lot_texts:
+            try:
+                lot_layer_names.add(e.dxf.layer)
+            except Exception:
+                pass
+                
         for entity in self.msp:
-            layer = entity.dxf.layer
+            try:
+                layer = entity.dxf.layer
+            except Exception:
+                # Ignorer les entités personnalisées (comme COVAPLPOINT) qui n'ont pas d'attribut layer
+                continue
+                
             # Ignorer les calques traités spécifiquement pour les lots
-            if layer in ['LOTS', 'LOTS_1', 'LOT', 'NOMLOT', 'NOMILOT']:
+            if layer in lot_layer_names or layer.upper() in ['LOTS', 'LOTS_1', 'LOT', 'NOMLOT', 'NOMILOT']:
                 continue
                 
             if layer not in self.background_layers:
