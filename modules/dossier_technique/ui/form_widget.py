@@ -94,6 +94,23 @@ class FormWidget(QWidget):
         
         layout.addWidget(group_scales)
         
+        # Groupe: Dossier de sortie
+        group_output = QGroupBox("Dossier de sortie")
+        layout_output = QHBoxLayout(group_output)
+        
+        self.in_output_dir = QLineEdit()
+        import os
+        self.in_output_dir.setText(os.path.abspath("."))
+        
+        self.btn_browse_output = QPushButton("Parcourir")
+        from PySide6.QtWidgets import QFileDialog
+        self.btn_browse_output.clicked.connect(self.browse_output_dir)
+        
+        layout_output.addWidget(self.in_output_dir)
+        layout_output.addWidget(self.btn_browse_output)
+        
+        layout.addWidget(group_output)
+        
         # Boutons
         layout_btn = QHBoxLayout()
         self.btn_preview = QPushButton("Aperçu PDF")
@@ -133,5 +150,15 @@ class FormWidget(QWidget):
             "lot": self.lbl_lot.text(),
             "surface": self.lbl_surface.text(),
             "echelle_1": self.combo_scale_1.currentText(),
+            "echelle_1": self.combo_scale_1.currentText(),
             "echelle_2": self.combo_scale_2.currentText()
         }
+        
+    def get_output_dir(self):
+        return self.in_output_dir.text()
+
+    def browse_output_dir(self):
+        from PySide6.QtWidgets import QFileDialog
+        d = QFileDialog.getExistingDirectory(self, "Sélectionner le dossier de sortie")
+        if d:
+            self.in_output_dir.setText(d)

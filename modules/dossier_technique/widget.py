@@ -341,13 +341,16 @@ class DossierTechniqueWidget(QWidget):
                     voisins[name] = v_info.get("bornes", [])
             data["voisins"] = voisins
             
-            pdf_gen = PDFGenerator(output_dir=tempfile.gettempdir() if preview else ".")
+            out_dir = self.form_widget.get_output_dir()
+            pdf_gen = PDFGenerator(output_dir=tempfile.gettempdir() if preview else out_dir)
             prefix = "preview_" if preview else "DT_"
             pdf_filename = f"{prefix}{ilot_name}_{lot_name}.pdf"
             output_path = pdf_gen.generate_pdf(pdf_filename, data)
             
             if preview:
-                webbrowser.open(f"file://{output_path}")
+                from PySide6.QtGui import QDesktopServices
+                from PySide6.QtCore import QUrl
+                QDesktopServices.openUrl(QUrl.fromLocalFile(output_path))
 
     def _generate_word(self):
         data = self.form_widget.get_data()
@@ -368,7 +371,8 @@ class DossierTechniqueWidget(QWidget):
                     voisins[name] = v_info.get("bornes", [])
             data["voisins"] = voisins
             
-            word_gen = WordGenerator(output_dir=".")
+            out_dir = self.form_widget.get_output_dir()
+            word_gen = WordGenerator(output_dir=out_dir)
             word_filename = f"DT_{ilot_name}_{lot_name}.docx"
             word_gen.generate_word(word_filename, data)
 
@@ -388,6 +392,7 @@ class DossierTechniqueWidget(QWidget):
             data["voisins"] = voisins
             
             exporter = DXFExporter()
-            output_filename = f"Extrait_{ilot_name}_Lot_{lot_name}.dxf"
+            out_dir = self.form_widget.get_output_dir()
+            output_filename = os.path.join(out_dir, f"Extrait_{ilot_name}_Lot_{lot_name}.dxf")
             exporter.export_lot(output_filename, lot_info, data)
             QMessageBox.information(self, "Succès", f"Fichier {output_filename} généré.")
