@@ -266,11 +266,11 @@ class WordGenerator:
                 row = ctable.rows[i+2].cells
                 row[0].text = b["point"] if b["point"] else ""
                 row[1].text = b["nom"]
-                row[2].text = f"{b['x']:.3f}" if b['x'] else ""
-                row[3].text = f"{b['y']:.3f}" if b['y'] else ""
-                row[4].text = f"{b['angle']:.3f}" if b['angle'] else ""
-                row[5].text = f"{b['dist']:.3f}" if b['dist'] else ""
-                row[6].text = f"{b['gis']:.3f}" if b['gis'] else ""
+                row[2].text = f"{b['x']:.3f}" if b['x'] is not None else ""
+                row[3].text = f"{b['y']:.3f}" if b['y'] is not None else ""
+                row[4].text = f"{b['angle']:.3f}" if b['angle'] is not None else ""
+                row[5].text = f"{b['dist']:.3f}" if b['dist'] is not None else ""
+                row[6].text = f"{b['gis']:.3f}" if b['gis'] is not None else ""
                 
         # =======================
         # PAGE 4 : EXTRAIT (PAYSAGE)
@@ -345,7 +345,14 @@ class WordGenerator:
             p2 = add_p(m_c1, text=f"ECHELLE : {v(data.get('echelle_1'))}", align=WD_ALIGN_PARAGRAPH.CENTER)
             set_font_size(m_c1, 7)
             
-        surface_val = float(data.get("surface", "0.0").replace(" m²", ""))
+        def parse_surface(surf_str):
+            try:
+                clean = str(surf_str).replace("m²", "").replace(" ", "").replace(",", ".").strip()
+                return float(clean)
+            except (ValueError, TypeError):
+                return 0.0
+
+        surface_val = parse_surface(data.get("surface", "0.0"))
         surface_txt = self._format_surface_text(surface_val)
         
         p = add_p(m_c2)

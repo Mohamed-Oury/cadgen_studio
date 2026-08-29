@@ -28,7 +28,7 @@ class WelcomeWidget(QWidget):
         subtitle = QLabel("Outils Topographiques et Fonciers Avancés")
         subtitle.setObjectName("WelcomeSubtitle")
         subtitle.setAlignment(Qt.AlignCenter)
-        subtitle.setStyleSheet("font-size: 16px; color: palette(mid); margin-bottom: 20px;")
+        subtitle.setStyleSheet("font-size: 16px; color: #A0AEC0; margin-bottom: 20px;")
 
         main_layout.addWidget(title)
         main_layout.addWidget(subtitle)
@@ -110,7 +110,7 @@ class WelcomeWidget(QWidget):
         lbl_desc = QLabel(desc)
         lbl_desc.setWordWrap(True)
         lbl_desc.setAlignment(Qt.AlignCenter)
-        lbl_desc.setStyleSheet("font-size: 13px; color: palette(mid);")
+        lbl_desc.setStyleSheet("font-size: 13px; color: #A0AEC0;")
         layout.addWidget(lbl_desc)
         
         layout.addStretch()

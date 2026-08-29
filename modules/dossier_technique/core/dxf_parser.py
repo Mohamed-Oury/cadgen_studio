@@ -68,59 +68,87 @@ class DXFParser:
                     lot_labels.append((t.dxf.text, pos))
 
         # 2. Associer les polygones aux labels
-        lot_idx = 1
+        all_polys = []
         for entity in lots_entities:
-            if entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
-                points = []
-                if entity.dxftype() == 'LWPOLYLINE':
-                    for p in entity: # LWPOLYLINE yields (x, y, start_width, end_width, bulge)
+            points = []
+            if entity.dxftype() == 'LWPOLYLINE':
+                for p in entity:
+                    points.append((p[0], p[1]))
+            else:
+                for p in entity.vertices():
+                    if hasattr(p, 'dxf'):
+                        points.append((p.dxf.location.x, p.dxf.location.y))
+                    else:
                         points.append((p[0], p[1]))
-                else:
-                    for p in entity.vertices():
-                        if hasattr(p, 'dxf'):
-                            points.append((p.dxf.location.x, p.dxf.location.y))
-                        else:
-                            points.append((p[0], p[1]))
+            
+            if len(points) >= 3:
+                try:
+                    poly = Polygon(points)
+                    if poly.is_valid and poly.area > 0:
+                        all_polys.append((poly, points))
+                except Exception:
+                    pass
+
+        assigned_lots = []
+        used_polys = set()
+
+        for text, pos in lot_labels:
+            candidates = []
+            for idx, (poly, points) in enumerate(all_polys):
+                if poly.contains(pos):
+                    candidates.append((poly.area, idx, poly, points))
+            
+            if candidates:
+                candidates.sort(key=lambda x: x[0])
+                best_area, best_idx, best_poly, best_points = candidates[0]
                 
-                if len(points) >= 3:
-                    try:
-                        poly = Polygon(points)
-                        if poly.is_valid and poly.area > 0:
-                            # Trouver le nom du lot
-                            lot_name = f"Lot_{lot_idx}"
-                            for text, pos in lot_labels:
-                                if poly.contains(pos):
-                                    lot_name = text
-                                    break
-                                    
-                            # Trouver le nom de l'ilot en utilisant le centroide du lot
-                            # (simplification car on n'extrait pas les polygones ILOT)
-                            ilot_name = "Inconnu"
-                            centroid = poly.centroid
-                            # Chercher le label ILOT le plus proche (heuristique)
-                            min_dist = float('inf')
-                            for text, pos in ilot_labels:
-                                dist = centroid.distance(pos)
-                                if dist < min_dist:
-                                    min_dist = dist
-                                    ilot_name = text
-                            
-                            # Si on a des polygones ILOT on pourrait faire poly_ilot.contains(poly)
-                            
-                            if ilot_name not in self.ilots:
-                                self.ilots[ilot_name] = {"geom": None, "pos": None, "lots": {}}
-                                for txt, p in ilot_labels:
-                                    if txt == ilot_name:
-                                        self.ilots[ilot_name]["pos"] = (p.x, p.y)
-                                        break
-                                
-                            self.ilots[ilot_name]["lots"][lot_name] = {
-                                "geom": poly,
-                                "bornes": points
-                            }
-                            lot_idx += 1
-                    except Exception as e:
-                        pass
+                ilot_name = "Inconnu"
+                centroid = best_poly.centroid
+                min_dist = float('inf')
+                for i_text, i_pos in ilot_labels:
+                    dist = centroid.distance(i_pos)
+                    if dist < min_dist:
+                        min_dist = dist
+                        ilot_name = i_text
+                        
+                assigned_lots.append((ilot_name, text, best_poly, best_points))
+                used_polys.add(best_idx)
+
+        lot_idx = 1
+        for idx, (poly, points) in enumerate(all_polys):
+            if idx in used_polys:
+                continue
+            
+            contained_labels = [txt for txt, pos in lot_labels if poly.contains(pos)]
+            if len(contained_labels) > 1:
+                # Contour d'îlot englobant plusieurs lots -> ignorer
+                continue
+                
+            ilot_name = "Inconnu"
+            centroid = poly.centroid
+            min_dist = float('inf')
+            for i_text, i_pos in ilot_labels:
+                dist = centroid.distance(i_pos)
+                if dist < min_dist:
+                    min_dist = dist
+                    ilot_name = i_text
+                    
+            assigned_lots.append((ilot_name, f"Lot_{lot_idx}", poly, points))
+            lot_idx += 1
+
+        self.ilots = {}
+        for ilot_name, lot_name, poly, points in assigned_lots:
+            if ilot_name not in self.ilots:
+                self.ilots[ilot_name] = {"geom": None, "pos": None, "lots": {}}
+                for txt, p in ilot_labels:
+                    if txt == ilot_name:
+                        self.ilots[ilot_name]["pos"] = (p.x, p.y)
+                        break
+                        
+            self.ilots[ilot_name]["lots"][lot_name] = {
+                "geom": poly,
+                "bornes": points
+            }
         
         # 3. Extraire les autres calques pour affichage en arrière-plan
         self.background_layers = {}

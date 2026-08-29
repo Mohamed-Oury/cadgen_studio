@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsPolygonIte
 from PySide6.QtGui import QPen, QBrush, QColor, QPolygonF, QPainter, QFont, QPainterPath
 # pyrefly: ignore [missing-import]
 from PySide6.QtCore import Qt, QPointF, Signal, QRectF
+from shapely.geometry import Point
 
 class MapViewer(QGraphicsView):
     selection_changed = Signal(list)  # Emit list of (ilot_name, lot_name)
@@ -24,6 +25,7 @@ class MapViewer(QGraphicsView):
         # Panning state
         self._is_panning = False
         self._last_pan_point = None
+        self._click_start_pos = None
 
         self.lot_items = {}
         self.text_items = []
@@ -65,10 +67,6 @@ class MapViewer(QGraphicsView):
             self.layer_groups[layer_name].setVisible(visible)
 
     def draw_lots(self, lots_data):
-        # We don't clear the whole scene here if we want to keep background layers
-        # But wait, draw_lots is usually called right after load. We should clear only lot_items?
-        # Actually, if we load a new file, we should clear the whole scene.
-        # But draw_lots is called before draw_background_layers. So clearing scene is fine.
         self.scene.clear()
         self.lot_items.clear()
         self.text_items.clear()
@@ -77,11 +75,9 @@ class MapViewer(QGraphicsView):
         self.preview_box_500 = None
         
         default_pen = QPen(QColor("#333333"))
-        default_pen.setWidth(0) # Cosmetic pen (1 pixel regardless of zoom)
+        default_pen.setWidth(0) # Cosmetic pen
         
-        default_brush = QBrush(Qt.transparent)
-        selected_brush = QBrush(QColor(204, 228, 247, 150)) # QGIS light blue selection
-
+        default_brush = QBrush(QColor(0, 0, 0, 1)) # Almost transparent brush for interior hit testing
         font = QFont("Arial", 8)
         ilot_font = QFont("Arial", 12, QFont.Bold)
         
@@ -94,17 +90,15 @@ class MapViewer(QGraphicsView):
                 ilot_item.setDefaultTextColor(QColor("#003366"))
                 text_rect = ilot_item.boundingRect()
                 ilot_item.setPos(pos[0] - text_rect.width() / 2, -pos[1] - text_rect.height() / 2)
-                ilot_item.setZValue(2) # Above everything
+                ilot_item.setZValue(2)
                 self.scene.addItem(ilot_item)
                 self.text_items.append(ilot_item)
                 
             for lot_name, lot_info in ilot_data.get('lots', {}).items():
                 polygon = lot_info['geom']
                 
-                # Convert shapely polygon to QPolygonF
                 qpoly = QPolygonF()
                 for x, y in polygon.exterior.coords:
-                    # Y axis is inverted in QGraphicsView compared to standard cartesian
                     qpoly.append(QPointF(x, -y))
                     
                 item = QGraphicsPolygonItem(qpoly)
@@ -112,26 +106,23 @@ class MapViewer(QGraphicsView):
                 item.setBrush(default_brush)
                 item.setFlag(QGraphicsItem.ItemIsSelectable)
                 
-                # Store data in item for click events
                 item.setData(0, ilot_name)
                 item.setData(1, lot_name)
+                item.setData(2, polygon)
                 
                 self.scene.addItem(item)
                 self.lot_items[(ilot_name, lot_name)] = item
                 
-                # Add text label
                 text_item = QGraphicsTextItem(lot_name)
                 text_item.setFont(font)
                 text_item.setDefaultTextColor(QColor("#666666"))
-                # Center text on polygon centroid
                 centroid = polygon.centroid
                 text_rect = text_item.boundingRect()
                 text_item.setPos(centroid.x - text_rect.width() / 2, -centroid.y - text_rect.height() / 2)
-                text_item.setZValue(1) # Above polygons
+                text_item.setZValue(1)
                 self.scene.addItem(text_item)
                 self.text_items.append(text_item)
                 
-        # Fit view to scene
         self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
 
     def zoom_to_selection(self):
@@ -175,28 +166,29 @@ class MapViewer(QGraphicsView):
                     item.setBrush(QBrush(QColor(204, 228, 247, 150)))
                     selected_lots.append((item.data(0), item.data(1)))
                 else:
-                    item.setBrush(QBrush(Qt.transparent))
+                    item.setBrush(QBrush(QColor(0, 0, 0, 1)))
         self.selection_changed.emit(selected_lots)
 
     def mouseMoveEvent(self, event):
         super().mouseMoveEvent(event)
         scene_pos = self.mapToScene(event.pos())
-        # Note: Y is inverted in our scene
         self.mouse_moved.emit(scene_pos.x(), -scene_pos.y())
         
         if self._is_panning and self._last_pan_point:
             delta = self.mapToScene(self._last_pan_point) - self.mapToScene(event.pos())
             self._last_pan_point = event.pos()
             self.setSceneRect(self.sceneRect().translated(delta.x(), delta.y()))
-            self.translate(delta.x(), delta.y()) # Visual translate
-            # Workaround for scrolling:
+            self.translate(delta.x(), delta.y())
             h_bar = self.horizontalScrollBar()
             v_bar = self.verticalScrollBar()
             h_bar.setValue(int(h_bar.value() + delta.x()))
             v_bar.setValue(int(v_bar.value() + delta.y()))
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.MiddleButton:
+        if event.button() == Qt.LeftButton:
+            self._click_start_pos = event.pos()
+            return
+        elif event.button() == Qt.MiddleButton:
             self._is_panning = True
             self._last_pan_point = event.pos()
             self.setCursor(Qt.ClosedHandCursor)
@@ -208,8 +200,52 @@ class MapViewer(QGraphicsView):
             self._is_panning = False
             self._last_pan_point = None
             self.setCursor(Qt.ArrowCursor)
-        else:
-            super().mouseReleaseEvent(event)
+            return
+
+        if event.button() == Qt.LeftButton and hasattr(self, '_click_start_pos') and self._click_start_pos is not None:
+            click_dist = (event.pos() - self._click_start_pos).manhattanLength()
+            self._click_start_pos = None
+            if click_dist < 5:
+                scene_pos = self.mapToScene(event.pos())
+                click_point = Point(scene_pos.x(), -scene_pos.y())
+                
+                # Trouve tous les lots contenant le point cliqué
+                candidates = []
+                for (ilot_name, lot_name), item in self.lot_items.items():
+                    poly = item.data(2)
+                    if poly:
+                        if poly.contains(click_point):
+                            candidates.append((poly.area, item))
+                        elif poly.distance(click_point) < 0.2:
+                            candidates.append((poly.area + 1000000.0, item))
+                
+                # Trie par surface croissante : le plus petit polygone correspond au lot individuel précis !
+                clicked_item = None
+                if candidates:
+                    candidates.sort(key=lambda x: x[0])
+                    clicked_item = candidates[0][1]
+                
+                modifiers = event.modifiers()
+                is_multi = bool(modifiers & (Qt.ControlModifier | Qt.ShiftModifier))
+                
+                self.scene.blockSignals(True)
+                if clicked_item:
+                    if not is_multi:
+                        for it in self.lot_items.values():
+                            it.setSelected(False)
+                        clicked_item.setSelected(True)
+                    else:
+                        clicked_item.setSelected(not clicked_item.isSelected())
+                else:
+                    if not is_multi:
+                        for it in self.lot_items.values():
+                            it.setSelected(False)
+                self.scene.blockSignals(False)
+                
+                self.on_selection_changed()
+                return
+
+        super().mouseReleaseEvent(event)
             
     def update_preview_boxes(self, center_x, center_y, width_5000, height_5000, width_500, height_500):
         if not self.preview_box_5000:

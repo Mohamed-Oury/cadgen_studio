@@ -89,7 +89,7 @@ class Viewer2DWidget(QWidget):
         
         # Info labels right aligned on top line
         self.lbl_info = QLabel("Aucun fichier chargé.")
-        self.lbl_info.setStyleSheet("color: palette(mid); font-style: italic;")
+        self.lbl_info.setStyleSheet("color: #A0AEC0; font-style: italic;")
         toolbar_layout_top.addWidget(self.lbl_info)
 
         # 2. Mode Buttons (Bottom Line)
@@ -344,6 +344,7 @@ class Viewer2DWidget(QWidget):
         dialog = VRDDialog(self, self.viewer.doc)
         dialog.exec()
 
+# pyrefly: ignore [missing-import]
 from PySide6.QtCore import Signal
 
 class LayersDialog(QDialog):

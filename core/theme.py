@@ -163,6 +163,6 @@ QLabel#WelcomeTitle {
 
 QLabel#WelcomeSubtitle {
     font-size: 14px;
-    color: #666666;
+    color: #A0AEC0;
 }
 """

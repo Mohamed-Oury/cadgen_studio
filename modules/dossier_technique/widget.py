@@ -298,6 +298,7 @@ class DossierTechniqueWidget(QWidget):
         if not all_layers:
             return
             
+        # pyrefly: ignore [missing-import]
         from PySide6.QtWidgets import QDialog
         dialog = LayersDialog(all_layers, self)
         
@@ -315,14 +316,27 @@ class DossierTechniqueWidget(QWidget):
         dialog.exec()
 
     def preview_pdf(self):
-        self._generate_pdf(preview=True)
+        try:
+            self._generate_pdf(preview=True)
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Erreur lors de l'aperçu PDF:\n{str(e)}")
 
     def generate_documents(self):
-        self._generate_pdf(preview=False)
-        self._generate_word()
-        QMessageBox.information(self, "Succès", "Génération des documents terminée.")
+        if not self.dxf_parser or self.combo_lots.currentIndex() == -1:
+            QMessageBox.warning(self, "Attention", "Veuillez sélectionner un lot valide avant de générer les documents.")
+            return
+            
+        try:
+            pdf_path = self._generate_pdf(preview=False)
+            word_path = self._generate_word()
+            QMessageBox.information(self, "Succès", "Génération des documents terminée avec succès.")
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Erreur lors de la génération des documents:\n{str(e)}")
 
     def _generate_pdf(self, preview=False):
+        if not self.dxf_parser:
+            raise Exception("Aucun fichier DXF n'a été chargé.")
+            
         data = self.form_widget.get_data()
         ilot_name = data.get("ilot")
         lot_name = data.get("lot")
@@ -330,29 +344,37 @@ class DossierTechniqueWidget(QWidget):
         ilot = self.dxf_parser.ilots.get(ilot_name, {})
         lot_info = ilot.get("lots", {}).get(lot_name)
         
-        if lot_info:
-            data["bornes"] = lot_info.get("bornes", [])
-            data["scale_5000"] = self.spin_scale_5000.value()
-            data["scale_500"] = self.spin_scale_500.value()
+        if not lot_info:
+            raise Exception(f"Les informations pour l'îlot {ilot_name} / lot {lot_name} ne sont pas disponibles.")
             
-            voisins = {}
-            for name, v_info in ilot.get("lots", {}).items():
-                if name != lot_name:
-                    voisins[name] = v_info.get("bornes", [])
-            data["voisins"] = voisins
-            
-            out_dir = self.form_widget.get_output_dir()
-            pdf_gen = PDFGenerator(output_dir=tempfile.gettempdir() if preview else out_dir)
-            prefix = "preview_" if preview else "DT_"
-            pdf_filename = f"{prefix}{ilot_name}_{lot_name}.pdf"
-            output_path = pdf_gen.generate_pdf(pdf_filename, data)
-            
-            if preview:
-                from PySide6.QtGui import QDesktopServices
-                from PySide6.QtCore import QUrl
-                QDesktopServices.openUrl(QUrl.fromLocalFile(output_path))
+        data["bornes"] = lot_info.get("bornes", [])
+        data["scale_5000"] = self.spin_scale_5000.value()
+        data["scale_500"] = self.spin_scale_500.value()
+        
+        voisins = {}
+        for name, v_info in ilot.get("lots", {}).items():
+            if name != lot_name:
+                voisins[name] = v_info.get("bornes", [])
+        data["voisins"] = voisins
+        
+        out_dir = self.form_widget.get_output_dir()
+        pdf_gen = PDFGenerator(output_dir=tempfile.gettempdir() if preview else out_dir)
+        prefix = "preview_" if preview else "DT_"
+        pdf_filename = f"{prefix}{ilot_name}_{lot_name}.pdf"
+        output_path = pdf_gen.generate_pdf(pdf_filename, data)
+        
+        if preview:
+            # pyrefly: ignore [missing-import]
+            from PySide6.QtGui import QDesktopServices
+            # pyrefly: ignore [missing-import]
+            from PySide6.QtCore import QUrl
+            QDesktopServices.openUrl(QUrl.fromLocalFile(output_path))
+        return output_path
 
     def _generate_word(self):
+        if not self.dxf_parser:
+            raise Exception("Aucun fichier DXF n'a été chargé.")
+            
         data = self.form_widget.get_data()
         ilot_name = data.get("ilot")
         lot_name = data.get("lot")
@@ -360,31 +382,41 @@ class DossierTechniqueWidget(QWidget):
         ilot = self.dxf_parser.ilots.get(ilot_name, {})
         lot_info = ilot.get("lots", {}).get(lot_name)
         
-        if lot_info:
-            data["bornes"] = lot_info.get("bornes", [])
-            data["scale_5000"] = self.spin_scale_5000.value()
-            data["scale_500"] = self.spin_scale_500.value()
+        if not lot_info:
+            raise Exception(f"Les informations pour l'îlot {ilot_name} / lot {lot_name} ne sont pas disponibles.")
             
-            voisins = {}
-            for name, v_info in ilot.get("lots", {}).items():
-                if name != lot_name:
-                    voisins[name] = v_info.get("bornes", [])
-            data["voisins"] = voisins
-            
-            out_dir = self.form_widget.get_output_dir()
-            word_gen = WordGenerator(output_dir=out_dir)
-            word_filename = f"DT_{ilot_name}_{lot_name}.docx"
-            word_gen.generate_word(word_filename, data)
+        data["bornes"] = lot_info.get("bornes", [])
+        data["scale_5000"] = self.spin_scale_5000.value()
+        data["scale_500"] = self.spin_scale_500.value()
+        
+        voisins = {}
+        for name, v_info in ilot.get("lots", {}).items():
+            if name != lot_name:
+                voisins[name] = v_info.get("bornes", [])
+        data["voisins"] = voisins
+        
+        out_dir = self.form_widget.get_output_dir()
+        word_gen = WordGenerator(output_dir=out_dir)
+        word_filename = f"DT_{ilot_name}_{lot_name}.docx"
+        return word_gen.generate_word(word_filename, data)
 
     def generate_dxf(self):
-        data = self.form_widget.get_data()
-        ilot_name = data.get("ilot")
-        lot_name = data.get("lot")
-        
-        ilot = self.dxf_parser.ilots.get(ilot_name, {})
-        lot_info = ilot.get("lots", {}).get(lot_name)
-        
-        if lot_info:
+        if not self.dxf_parser or self.combo_lots.currentIndex() == -1:
+            QMessageBox.warning(self, "Attention", "Veuillez sélectionner un lot valide avant de générer le DXF.")
+            return
+            
+        try:
+            data = self.form_widget.get_data()
+            ilot_name = data.get("ilot")
+            lot_name = data.get("lot")
+            
+            ilot = self.dxf_parser.ilots.get(ilot_name, {})
+            lot_info = ilot.get("lots", {}).get(lot_name)
+            
+            if not lot_info:
+                QMessageBox.warning(self, "Attention", "Données du lot non trouvées.")
+                return
+                
             voisins = {}
             for name, v_info in ilot.get("lots", {}).items():
                 if name != lot_name:
@@ -395,4 +427,6 @@ class DossierTechniqueWidget(QWidget):
             out_dir = self.form_widget.get_output_dir()
             output_filename = os.path.join(out_dir, f"Extrait_{ilot_name}_Lot_{lot_name}.dxf")
             exporter.export_lot(output_filename, lot_info, data)
-            QMessageBox.information(self, "Succès", f"Fichier {output_filename} généré.")
+            QMessageBox.information(self, "Succès", f"Fichier {output_filename} généré avec succès.")
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Erreur lors de la génération du fichier DXF:\n{str(e)}")

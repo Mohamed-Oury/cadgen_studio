@@ -25,7 +25,7 @@ class ExportKMLWidget(QWidget):
         layout.addWidget(title)
 
         subtitle = QLabel("Convertissez vos fichiers DXF en fichiers géoréférencés pour Google Earth.")
-        subtitle.setStyleSheet("color: palette(mid); font-size: 14px;")
+        subtitle.setStyleSheet("color: #A0AEC0; font-size: 14px;")
         layout.addWidget(subtitle)
 
         # Settings Group
@@ -36,7 +36,7 @@ class ExportKMLWidget(QWidget):
         # DXF Selection
         dxf_layout = QHBoxLayout()
         self.lbl_dxf = QLabel("Aucun fichier sélectionné")
-        self.lbl_dxf.setStyleSheet("color: palette(mid); font-style: italic;")
+        self.lbl_dxf.setStyleSheet("color: #A0AEC0; font-style: italic;")
         
         btn_select_dxf = QPushButton(" Sélectionner Fichier DXF")
         btn_select_dxf.setIcon(qta.icon('fa5s.folder-open'))

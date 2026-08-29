@@ -689,44 +689,53 @@ class PDFGenerator:
         bornes = data.get("bornes", [])
         
         bornes_calc = []
-        for i in range(len(bornes)):
-            b1 = bornes[i]
-            bornes_calc.append({
-                "point": f"P{i+1}",
-                "nom": f"B{i+1}",
-                "x": b1[0],
-                "y": b1[1],
-                "angle": 100.000, 
-                "dist": None,
-                "gis": None 
-            })
-            
-        for i in range(len(bornes)):
-            b1 = bornes[i]
-            b2 = bornes[(i+1)%len(bornes)]
-            dx = b2[0] - b1[0]
-            dy = b2[1] - b1[1]
-            dist = math.sqrt(dx**2 + dy**2)
-            
-            # Calcul du gisement (en grades)
-            gis = math.atan2(dx, dy) * 200 / math.pi
-            if gis < 0: gis += 400
-            
-            if i == len(bornes) - 1:
+        if bornes:
+            for i in range(len(bornes)):
+                b1 = bornes[i]
                 bornes_calc.append({
-                    "point": "P1",
-                    "nom": "B1",
-                    "x": None,
-                    "y": None,
-                    "angle": None,
-                    "dist": dist,
-                    "gis": gis
+                    "point": f"P{i+1}",
+                    "nom": f"B{i+1}",
+                    "x": b1[0],
+                    "y": b1[1],
+                    "angle": 100.000, 
+                    "dist": None,
+                    "gis": None 
                 })
-            else:
-                bornes_calc[i+1]["dist"] = dist
-                bornes_calc[i+1]["gis"] = gis
+                
+            for i in range(len(bornes)):
+                b1 = bornes[i]
+                b2 = bornes[(i+1)%len(bornes)]
+                dx = b2[0] - b1[0]
+                dy = b2[1] - b1[1]
+                dist = math.sqrt(dx**2 + dy**2)
+                
+                # Calcul du gisement (en grades)
+                gis = math.atan2(dx, dy) * 200 / math.pi
+                if gis < 0: gis += 400
+                
+                if i == len(bornes) - 1:
+                    bornes_calc.append({
+                        "point": "P1",
+                        "nom": "B1",
+                        "x": None,
+                        "y": None,
+                        "angle": None,
+                        "dist": dist,
+                        "gis": gis
+                    })
+                else:
+                    if i + 1 < len(bornes_calc):
+                        bornes_calc[i+1]["dist"] = dist
+                        bornes_calc[i+1]["gis"] = gis
 
-        surface_val = float(data.get("surface", "0.0").replace(" m²", ""))
+        def parse_surface(surf_str):
+            try:
+                clean = str(surf_str).replace("m²", "").replace(" ", "").replace(",", ".").strip()
+                return float(clean)
+            except (ValueError, TypeError):
+                return 0.0
+
+        surface_val = parse_surface(data.get("surface", "0.0"))
 
         template = Template(self.html_template)
         html_out = template.render(
@@ -758,8 +767,9 @@ class PDFGenerator:
         output_path = os.path.join(self.output_dir, filename)
         
         try:
+            # pyrefly: ignore [missing-import]
             from weasyprint import HTML
             HTML(string=html_out).write_pdf(output_path)
             return output_path
-        except ImportError as e:
-            raise Exception("Impossible de générer le PDF. L'export PDF nécessite la librairie GTK3 installée sur votre système (WeasyPrint error).") from e
+        except Exception as e:
+            raise Exception(f"Impossible de générer le PDF : {str(e)}") from e
