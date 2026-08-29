@@ -766,10 +766,72 @@ class PDFGenerator:
         
         output_path = os.path.join(self.output_dir, filename)
         
+        # 1. Tenter avec WeasyPrint (si GTK/gobject est installé)
         try:
             # pyrefly: ignore [missing-import]
             from weasyprint import HTML
             HTML(string=html_out).write_pdf(output_path)
             return output_path
-        except Exception as e:
-            raise Exception(f"Impossible de générer le PDF : {str(e)}") from e
+        except Exception as e_weasy:
+            # 2. Fallback automatique avec QtWebEngine (inclus dans PySide6, fonctionne sur Windows sans GTK)
+            try:
+                return self._generate_pdf_with_qt(html_out, output_path)
+            except Exception as e_qt:
+                # 3. Secours avec QTextDocument
+                try:
+                    return self._generate_pdf_with_text_document(html_out, output_path)
+                except Exception as e_doc:
+                    raise Exception(
+                        f"Impossible de générer le PDF. Erreurs :\n"
+                        f"- WeasyPrint: {str(e_weasy)}\n"
+                        f"- QtWebEngine: {str(e_qt)}\n"
+                        f"- QTextDocument: {str(e_doc)}"
+                    ) from e_doc
+
+    def _generate_pdf_with_qt(self, html_content, output_path):
+        from PySide6.QtWidgets import QApplication
+        from PySide6.QtWebEngineCore import QWebEnginePage
+        from PySide6.QtCore import QEventLoop
+        import os
+
+        app = QApplication.instance()
+        if not app:
+            app = QApplication([])
+
+        page = QWebEnginePage()
+        page.setHtml(html_content)
+
+        loop = QEventLoop()
+        page.loadFinished.connect(loop.quit)
+        loop.exec()
+
+        pdf_loop = QEventLoop()
+        result = {"success": False}
+
+        def on_pdf_finished(path, success):
+            result["success"] = success
+            pdf_loop.quit()
+
+        page.pdfPrintingFinished.connect(on_pdf_finished)
+        page.printToPdf(output_path)
+        pdf_loop.exec()
+
+        if not result["success"] or not os.path.exists(output_path):
+            raise Exception("La génération du PDF via QtWebEngine a échoué.")
+        return output_path
+
+    def _generate_pdf_with_text_document(self, html_content, output_path):
+        from PySide6.QtGui import QTextDocument, QPdfWriter, QPageSize
+        import os
+
+        doc = QTextDocument()
+        doc.setHtml(html_content)
+
+        writer = QPdfWriter(output_path)
+        writer.setPageSize(QPageSize(QPageSize.A4))
+        doc.print_(writer)
+
+        if not os.path.exists(output_path):
+            raise Exception("La génération du PDF via QTextDocument a échoué.")
+        return output_path
+
