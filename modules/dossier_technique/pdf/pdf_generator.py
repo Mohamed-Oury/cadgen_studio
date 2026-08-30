@@ -789,8 +789,11 @@ class PDFGenerator:
                     ) from e_doc
 
     def _generate_pdf_with_qt(self, html_content, output_path):
+        # pyrefly: ignore [missing-import]
         from PySide6.QtWidgets import QApplication
+        # pyrefly: ignore [missing-import]
         from PySide6.QtWebEngineCore import QWebEnginePage
+        # pyrefly: ignore [missing-import]
         from PySide6.QtCore import QEventLoop
         import os
 
@@ -821,6 +824,7 @@ class PDFGenerator:
         return output_path
 
     def _generate_pdf_with_text_document(self, html_content, output_path):
+        # pyrefly: ignore [missing-import]
         from PySide6.QtGui import QTextDocument, QPdfWriter, QPageSize
         import os
 
