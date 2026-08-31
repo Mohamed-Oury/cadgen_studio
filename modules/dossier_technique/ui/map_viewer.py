@@ -16,7 +16,7 @@ class MapViewer(QGraphicsView):
         self.setScene(self.scene)
         
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
-        self.setDragMode(QGraphicsView.RubberBandDrag)
+        self.setDragMode(QGraphicsView.NoDrag)
         self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
         self.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
         self.setBackgroundBrush(QBrush(QColor("#FFFFFF")))
@@ -174,6 +174,11 @@ class MapViewer(QGraphicsView):
         scene_pos = self.mapToScene(event.pos())
         self.mouse_moved.emit(scene_pos.x(), -scene_pos.y())
         
+        if not self._is_panning and (event.buttons() & Qt.LeftButton) and hasattr(self, '_click_start_pos') and self._click_start_pos:
+            if (event.pos() - self._click_start_pos).manhattanLength() > 5:
+                self._is_panning = True
+                self.setCursor(Qt.ClosedHandCursor)
+
         if self._is_panning and self._last_pan_point:
             delta = self.mapToScene(self._last_pan_point) - self.mapToScene(event.pos())
             self._last_pan_point = event.pos()
@@ -187,6 +192,8 @@ class MapViewer(QGraphicsView):
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             self._click_start_pos = event.pos()
+            self._last_pan_point = event.pos()
+            self._is_panning = False
             return
         elif event.button() == Qt.MiddleButton:
             self._is_panning = True
@@ -205,7 +212,14 @@ class MapViewer(QGraphicsView):
         if event.button() == Qt.LeftButton and hasattr(self, '_click_start_pos') and self._click_start_pos is not None:
             click_dist = (event.pos() - self._click_start_pos).manhattanLength()
             self._click_start_pos = None
-            if click_dist < 5:
+            
+            if self._is_panning:
+                self._is_panning = False
+                self._last_pan_point = None
+                self.setCursor(Qt.ArrowCursor)
+                return
+                
+            if click_dist <= 5:
                 scene_pos = self.mapToScene(event.pos())
                 click_point = Point(scene_pos.x(), -scene_pos.y())
                 

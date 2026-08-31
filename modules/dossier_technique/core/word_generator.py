@@ -206,6 +206,9 @@ class WordGenerator:
         if bornes:
             table = doc.add_table(rows=len(bornes)+1, cols=3)
             table.style = 'Table Grid'
+            table.autofit = False
+            table.allow_autofit = False
+            
             hdr = table.rows[0].cells
             hdr[0].text, hdr[1].text, hdr[2].text = "Bornes", "X", "Y"
             for i, borne in enumerate(bornes):
@@ -213,6 +216,13 @@ class WordGenerator:
                 row[0].text = f"B{i+1}"
                 row[1].text = f"{borne[0]:.3f}"
                 row[2].text = f"{borne[1]:.3f}"
+                
+            # Ajustement des largeurs
+            col_widths = [Cm(2.0), Cm(4.0), Cm(4.0)]
+            for row in table.rows:
+                row.height = Cm(0.8)
+                for idx, width in enumerate(col_widths):
+                    row.cells[idx].width = width
                 
         # =======================
         # PAGE 3 : CALCUL RETOUR
@@ -255,6 +265,9 @@ class WordGenerator:
             
             ctable = doc.add_table(rows=len(bornes_calc)+2, cols=7)
             ctable.style = 'Table Grid'
+            ctable.autofit = False
+            ctable.allow_autofit = False
+            
             hdr = ctable.rows[0].cells
             hdr[0].merge(hdr[3]).text = "COORDONNEES"
             hdr[4].merge(hdr[6]).text = "CALCUL RETOUR"
@@ -271,155 +284,19 @@ class WordGenerator:
                 row[4].text = f"{b['angle']:.3f}" if b['angle'] is not None else ""
                 row[5].text = f"{b['dist']:.3f}" if b['dist'] is not None else ""
                 row[6].text = f"{b['gis']:.3f}" if b['gis'] is not None else ""
+
+            # Ajustement des largeurs de colonnes et hauteurs de lignes
+            col_widths = [Cm(1.5), Cm(1.7), Cm(3.0), Cm(3.0), Cm(2.0), Cm(2.5), Cm(2.5)]
+            for row in ctable.rows:
+                row.height = Cm(0.8)  # Augmente la hauteur de la ligne
+                for idx, width in enumerate(col_widths):
+                    row.cells[idx].width = width
                 
         # =======================
         # PAGE 4 : EXTRAIT (PAYSAGE)
         # =======================
-        # Insert a new section for landscape
-        new_section = doc.add_section(WD_SECTION.NEW_PAGE)
-        new_width, new_height = new_section.page_height, new_section.page_width
-        new_section.orientation = WD_ORIENT.LANDSCAPE
-        new_section.page_width = new_width
-        new_section.page_height = new_height
-        
-        # Marges plus petites pour maximiser l'espace
-        new_section.left_margin = Inches(0.4)
-        new_section.right_margin = Inches(0.4)
-        new_section.top_margin = Inches(0.4)
-        new_section.bottom_margin = Inches(0.4)
-        
-        # Utiliser un grand tableau invisible pour séparer Gauche et Droite
-        table = doc.add_table(rows=1, cols=2)
-        table.autofit = False
-        table.allow_autofit = False
-        table.columns[0].width = Inches(7.5)
-        table.columns[1].width = Inches(3.0)
-        
-        left_cell = table.cell(0, 0)
-        left_cell.width = Inches(7.5)
-        right_cell = table.cell(0, 1)
-        right_cell.width = Inches(3.0)
-        
-        def set_font_size(cell, size):
-            for paragraph in cell.paragraphs:
-                # Remove spacing after paragraphs to save space
-                paragraph.paragraph_format.space_after = Pt(0)
-                paragraph.paragraph_format.space_before = Pt(0)
-                for run in paragraph.runs:
-                    run.font.size = Pt(size)
-                    
-        def add_p(cell, text="", align=WD_ALIGN_PARAGRAPH.LEFT):
-            p = cell.add_paragraph(text)
-            p.alignment = align
-            p.paragraph_format.space_after = Pt(0)
-            p.paragraph_format.space_before = Pt(0)
-            return p
-                    
-        # === COLONNE GAUCHE ===
-        # Word cree un paragraphe vide par defaut dans chaque cellule, on le minimise
-        for p in left_cell.paragraphs:
-            p.paragraph_format.space_after = Pt(0)
-            p.paragraph_format.space_before = Pt(0)
-            p.paragraph_format.line_spacing = Pt(1)
-            
-        header_table = left_cell.add_table(rows=1, cols=3)
-        h_c1, h_c2, h_c3 = header_table.rows[0].cells
-        h_c1.text = f"République de Côte d'Ivoire\nMinistère des Finances et du Budget\nDirection du Cadastre\nBureau de {v(data.get('centre'))}"
-        h_c2.text = f"T.F.No: {v(data.get('tf'))}\nSection: {v(data.get('section'))}\nNo du Plan: ......"
-        h_c3.text = f"Centre: {v(data.get('centre'))}\nIlot: {v(data.get('ilot'))}    Lot: {v(data.get('lot'))}    Parcelle: ......\nMorcellement du TF: {v(data.get('tf'))}\nFusion des TF: ......\nRequisition: ......\nLivre Foncier de : {v(data.get('livre_foncier'))}\nCédant: ETAT DE CI\nDemandeur: {v(data.get('demandeur'))}"
-        set_font_size(h_c1, 7)
-        set_font_size(h_c2, 7)
-        set_font_size(h_c3, 7)
-        
-        # Insertion des images
-        voisins = data.get("voisins", {})
-        img1 = self._render_plot(bornes, voisins, zoom_out=True, show_grid_ticks=False)
-        img2 = self._render_plot(bornes, voisins, zoom_out=False, show_grid_ticks=True)
-        
-        map_table = left_cell.add_table(rows=1, cols=2)
-        m_c1, m_c2 = map_table.rows[0].cells
-        
-        if img1:
-            p = add_p(m_c1, align=WD_ALIGN_PARAGRAPH.CENTER)
-            p.add_run().add_picture(img1, width=Inches(1.5))
-            p2 = add_p(m_c1, text=f"ECHELLE : {v(data.get('echelle_1'))}", align=WD_ALIGN_PARAGRAPH.CENTER)
-            set_font_size(m_c1, 7)
-            
-        def parse_surface(surf_str):
-            try:
-                clean = str(surf_str).replace("m²", "").replace(" ", "").replace(",", ".").strip()
-                return float(clean)
-            except (ValueError, TypeError):
-                return 0.0
-
-        surface_val = parse_surface(data.get("surface", "0.0"))
-        surface_txt = self._format_surface_text(surface_val)
-        
-        p = add_p(m_c2)
-        r = p.add_run("NOTA: Toute reproduction officielle doit obligatoirement\ncomporter le timbre sec du Service du Cadastre\n\n")
-        r.font.size = Pt(7)
-        r2 = p.add_run(f"Contenance:   {surface_txt}")
-        r2.font.size = Pt(9)
-        r2.bold = True
-        
-        if img2:
-            p = add_p(left_cell, align=WD_ALIGN_PARAGRAPH.CENTER)
-            p.add_run().add_picture(img2, width=Inches(2.8))
-            p2 = add_p(left_cell, text=f"ECHELLE : {v(data.get('echelle_2'))}", align=WD_ALIGN_PARAGRAPH.CENTER)
-            
-        footer_table = left_cell.add_table(rows=1, cols=2)
-        f_c1, f_c2 = footer_table.rows[0].cells
-        f_c1.text = f"N°: {v(data.get('dossier'))}\n\nCopie certifiée conforme\n{v(data.get('centre')).capitalize()}, le :\nLe Géomètre Assermenté du Cadastre"
-        f_c2.text = f"Levé et Dressé par {v(data.get('cabinet_nom'))}\n{v(data.get('cabinet_adresse'))}\n{v(data.get('centre')).upper()}, le {v(data.get('date_consultation'))}\n\n{v(data.get('signataire_nom'))}\n{v(data.get('signataire_titre'))}"
-        set_font_size(f_c1, 7)
-        set_font_size(f_c2, 7)
-        f_c2.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-        
-        # === COLONNE DROITE ===
-        for p in right_cell.paragraphs:
-            p.paragraph_format.space_after = Pt(0)
-            p.paragraph_format.space_before = Pt(0)
-            p.paragraph_format.line_spacing = Pt(1)
-            
-        p = add_p(right_cell, "TABLEAU DES COORDONNEES", align=WD_ALIGN_PARAGRAPH.CENTER)
-        p2 = right_cell.add_paragraph("ITRF96-1998.2 /Ellipsoïde du WGS 84 UTM FUSEAU 30N")
-        p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.runs[0].font.size = Pt(12)
-        p2.runs[0].font.size = Pt(8)
-        
-        # Tableau Coordonnées Droite
-        if bornes and bornes_calc:
-            coord_table = right_cell.add_table(rows=len(bornes_calc)+1, cols=5)
-            coord_table.style = 'Table Grid'
-            hdr = coord_table.rows[0].cells
-            hdr[0].text, hdr[1].text, hdr[2].text, hdr[3].text, hdr[4].text = "BORNES", "X", "Y", "ANGLES", "DISTANCES"
-            set_font_size(coord_table.rows[0].cells[0], 8)
-            
-            for i, b in enumerate(bornes_calc):
-                row = coord_table.rows[i+1].cells
-                if b["x"] is not None:
-                    row[0].text = str(b["nom"])
-                    row[1].text = f"{b['x']:.3f}"
-                    row[2].text = f"{b['y']:.3f}"
-                    row[3].text = f"{b['angle']:.3f}" if b["angle"] else "100.000"
-                    if b["dist"]:
-                        row[4].text = f"{b['dist']:.3f}"
-                else:
-                    row[0].text = str(b["nom"])
-                    row[1].text = ""
-                    row[2].text = ""
-                    row[3].text = ""
-                    if b["dist"]:
-                        row[4].text = f"{b['dist']:.3f}"
-            
-            # Reduce font size of coord table
-            for row in coord_table.rows:
-                for cell in row.cells:
-                    for paragraph in cell.paragraphs:
-                        for run in paragraph.runs:
-                            run.font.size = Pt(7)
-                            
+        # La page 4 a été retirée selon la demande.
+                                    
         output_path = os.path.join(self.output_dir, filename)
         doc.save(output_path)
         return output_path

@@ -69,66 +69,70 @@ class WelcomeWidget(QWidget):
 
     def create_module_card(self, title, desc, icon_name, module_id):
         card = QFrame()
-        card.setFixedSize(300, 220)
+        card.setFixedSize(320, 260)
         card.setObjectName("ModuleCard")
         card.setStyleSheet("""
             QFrame#ModuleCard {
                 background-color: palette(base);
-                border-radius: 12px;
-                border: 1px solid palette(midlight);
+                border-radius: 16px;
+                border: 1px solid #E2E8F0;
             }
             QFrame#ModuleCard:hover {
-                border: 1px solid palette(primary);
-                background-color: palette(window);
+                border: 1px solid #2ECC71;
+                background-color: #F8FFF9;
             }
         """)
         
         # Shadow effect
         shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(20)
-        shadow.setColor(QColor(0, 0, 0, 30))
-        shadow.setOffset(0, 5)
+        shadow.setBlurRadius(25)
+        shadow.setColor(QColor(0, 0, 0, 20))
+        shadow.setOffset(0, 8)
         card.setGraphicsEffect(shadow)
         
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(15)
+        layout.setContentsMargins(24, 30, 24, 24)
+        layout.setSpacing(12)
         
         # Icon
         lbl_icon = QLabel()
-        lbl_icon.setPixmap(qta.icon(icon_name, color='#2ECC71').pixmap(48, 48))
+        lbl_icon.setPixmap(qta.icon(icon_name, color='#2ECC71').pixmap(56, 56))
         lbl_icon.setAlignment(Qt.AlignCenter)
         layout.addWidget(lbl_icon)
         
         # Title
         lbl_title = QLabel(title)
         lbl_title.setAlignment(Qt.AlignCenter)
-        lbl_title.setStyleSheet("font-size: 18px; font-weight: bold; color: palette(text);")
+        lbl_title.setStyleSheet("font-size: 20px; font-weight: 800; color: #2D3748; margin-top: 10px;")
         layout.addWidget(lbl_title)
         
         # Description
         lbl_desc = QLabel(desc)
         lbl_desc.setWordWrap(True)
         lbl_desc.setAlignment(Qt.AlignCenter)
-        lbl_desc.setStyleSheet("font-size: 13px; color: #A0AEC0;")
+        lbl_desc.setStyleSheet("font-size: 14px; color: #718096; line-height: 1.4;")
         layout.addWidget(lbl_desc)
         
         layout.addStretch()
         
         # Button
-        btn = QPushButton("Ouvrir")
+        btn = QPushButton("Ouvrir le module")
         btn.setCursor(Qt.PointingHandCursor)
         btn.setStyleSheet("""
             QPushButton {
-                background-color: palette(primary);
+                background-color: #2ECC71;
                 color: white;
-                border-radius: 6px;
-                padding: 10px;
+                border-radius: 8px;
+                padding: 12px;
+                font-size: 14px;
                 font-weight: bold;
                 border: none;
             }
             QPushButton:hover {
                 background-color: #27AE60;
+            }
+            QPushButton:pressed {
+                background-color: #219653;
             }
         """)
         btn.clicked.connect(lambda: self.start_module_requested.emit(module_id))

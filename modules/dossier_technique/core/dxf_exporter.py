@@ -13,7 +13,7 @@ class DXFExporter:
         """
         Génère un nouveau fichier DXF avec le cartouche complet (Espace Objet).
         """
-        doc = ezdxf.new('R2010')
+        doc = ezdxf.new('R2010', setup=True)
         msp = doc.modelspace()
         
         # Calques
@@ -88,7 +88,8 @@ class DXFExporter:
                 'CENTER': TextEntityAlignment.CENTER,
                 'RIGHT': TextEntityAlignment.RIGHT
             }
-            msp.add_text(text, dxfattribs={'layer': 'TEXTES', 'height': h}).set_placement((x, y), align=align_map.get(align, TextEntityAlignment.LEFT))
+            align_val = align_map.get(align, TextEntityAlignment.LEFT)
+            msp.add_text(text, dxfattribs={'layer': 'TEXTES', 'height': h}).set_pos((x, y), align=align_val)
             
         # En-tête gauche
         header_top_y = oy + height - (2.0 * scale_ratio)
@@ -167,6 +168,9 @@ class DXFExporter:
             
             draw_table_row(cy_row, [f"B{i+1}", f"{b1[0]:.3f}", f"{b1[1]:.3f}", f"{dist:.3f}"])
             cy_row -= row_h
+
+        # Zoom extents pour l'affichage initial
+        doc.set_modelspace_vport(center=(cx, cy), height=height * 1.2)
 
         # Sauvegarde
         output_path = os.path.join(self.output_dir, filename)

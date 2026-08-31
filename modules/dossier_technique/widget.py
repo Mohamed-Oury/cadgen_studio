@@ -28,7 +28,7 @@ class DossierTechniqueWidget(QWidget):
         
         # --- LEFT PANEL (Stack) ---
         self.left_stack = QStackedWidget()
-        self.left_stack.setFixedWidth(480)
+        self.left_stack.setFixedWidth(520)
         
         # Page 1: Selection
         self.page_selection = QWidget()
