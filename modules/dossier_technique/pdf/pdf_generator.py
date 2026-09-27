@@ -164,38 +164,40 @@ class PDFGenerator:
                 }
                 .plan-container {
                     width: 100%;
+                    height: 268mm;
                     border: 1px solid black;
                     border-collapse: collapse;
                     page-break-inside: avoid;
                     break-inside: avoid;
+                    font-family: 'Times New Roman', 'Liberation Serif', 'Nimbus Roman', Times, serif;
                 }
                 .plan-container td {
                     vertical-align: top;
-                    padding: 6px;
+                    padding: 8px 12px;
                 }
                 .plan-left {
-                    width: 50%;
+                    width: 55%;
                     border-right: 1px solid black;
                 }
                 .plan-right {
-                    width: 50%;
+                    width: 40%;
                 }
                 
                 .plan-header {
                     width: 100%;
-                    font-size: 7.5pt;
+                    font-size: 8pt;
                     border-bottom: 1px solid black;
-                    margin-bottom: 6px;
-                    padding-bottom: 4px;
+                    margin-bottom: 8px;
+                    padding-bottom: 6px;
                 }
                 .plan-header td {
                     vertical-align: top;
                     border: none;
-                    padding: 0 6px;
+                    padding: 0 4px;
                 }
-                .plan-header-col1 { width: 25%; line-height: 1.3; text-align: center; }
-                .plan-header-col2 { width: 20%; line-height: 1.4; }
-                .plan-header-col3 { width: 55%; line-height: 1.3; }
+                .plan-header-col1 { width: 24%; line-height: 1.4; text-align: center; }
+                .plan-header-col2 { width: 20%; line-height: 1.5; }
+                .plan-header-col3 { width: 56%; line-height: 1.4; }
                 
                 .plan-header-col2 span { display: inline-block; width: 65px; }
                 
@@ -210,14 +212,20 @@ class PDFGenerator:
                 }
                 .situation-col1 {
                     display: table-cell;
-                    width: 40%;
+                    width: 36%;
                     vertical-align: top;
+                }
+                .situation-arrow {
+                    display: table-cell;
+                    width: 10%;
+                    vertical-align: middle;
+                    text-align: center;
                 }
                 .situation-col2 {
                     display: table-cell;
-                    width: 60%;
-                    vertical-align: top;
-                    padding-left: 15px;
+                    width: 54%;
+                    vertical-align: middle;
+                    padding-left: 10px;
                     font-size: 9pt;
                 }
                 
@@ -229,7 +237,7 @@ class PDFGenerator:
                 }
                 .map-situation img {
                     max-width: 100%;
-                    max-height: 135px;
+                    max-height: 145px;
                     height: auto;
                     object-fit: contain;
                     display: block;
@@ -238,7 +246,7 @@ class PDFGenerator:
                 .scale-box {
                     border-top: 1px solid black;
                     text-align: center;
-                    font-size: 8pt;
+                    font-size: 8.5pt;
                     font-weight: bold;
                     background: white;
                     padding: 2px 0;
@@ -247,55 +255,57 @@ class PDFGenerator:
                 .map-masse {
                     width: 100%;
                     text-align: center;
+                    margin: 4px 0;
                 }
                 .map-masse img {
                     max-width: 100%;
-                    max-height: 280px;
+                    max-height: 440px;
                     height: auto;
                     object-fit: contain;
                     display: block;
                     margin: 0 auto;
                 }
-                .map-masse-scale {
-                    font-size: 8.5pt;
-                    font-weight: bold;
-                    margin-top: 3px;
-                }
                 
                 .plan-footer {
                     width: 100%;
-                    font-size: 7pt;
-                    margin-top: 6px;
-                    line-height: 1.25;
+                    font-size: 7.5pt;
+                    margin-top: 12px;
+                    line-height: 1.35;
                 }
                 .plan-footer td {
-                    vertical-align: top;
+                    vertical-align: bottom;
                     border: none;
                 }
-                .plan-footer-left { width: 50%; line-height: 1.3; font-weight: bold; }
-                .plan-footer-right { width: 50%; text-align: center; line-height: 1.2; }
+                .plan-footer-left { width: 38%; line-height: 1.4; }
+                .plan-footer-center { width: 24%; text-align: center; font-weight: bold; font-size: 9.5pt; }
+                .plan-footer-right { width: 38%; text-align: center; line-height: 1.3; }
                 
                 .coord-title {
                     text-align: center;
-                    font-size: 12pt;
+                    font-size: 14pt;
                     font-weight: bold;
-                    margin: 0 0 3px 0;
+                    margin: 15px 0 4px 0;
                 }
                 .coord-subtitle {
                     text-align: center;
-                    font-size: 8pt;
-                    margin-bottom: 6px;
+                    font-size: 8.5pt;
+                    margin-bottom: 15px;
                 }
                 .table-coord-main {
-                    width: 100%;
+                    width: 82%;
+                    margin: 0 auto;
                     border-collapse: collapse;
-                    font-size: 7.5pt;
+                    font-size: 8.5pt;
                 }
                 .table-coord-main th, .table-coord-main td {
                     border: 1px solid black;
-                    padding: 3px 2px;
+                    padding: 6px 4px;
                     text-align: center;
                     vertical-align: middle;
+                }
+                .table-coord-main th {
+                    font-weight: bold;
+                    background-color: #fafafa;
                 }
             </style>
         </head>
@@ -505,11 +515,19 @@ class PDFGenerator:
                                         <div class="scale-box">ECHELLE : {{ echelle_1 }}</div>
                                     </div>
                                 </div>
+                                <div class="situation-arrow">
+                                    <svg width="20" height="52" viewBox="0 0 20 52">
+                                        <polygon points="10,2 4,22 10,18" fill="black" />
+                                        <polygon points="10,2 16,22 10,18" fill="white" stroke="black" stroke-width="0.8" />
+                                        <line x1="10" y1="18" x2="10" y2="36" stroke="black" stroke-width="1.2" />
+                                        <text x="10" y="48" font-family="'Times New Roman', serif" font-size="11" font-weight="bold" text-anchor="middle">N</text>
+                                    </svg>
+                                </div>
                                 <div class="situation-col2">
-                                    <div style="font-size: 9pt; text-align: center; margin-bottom: 30px;">
+                                    <div style="font-size: 8.5pt; text-align: center; margin-bottom: 22px;">
                                         NOTA: Toute reproduction officielle doit obligatoirement<br>comporter le timbre sec du Service du Cadastre
                                     </div>
-                                    <div style="text-align: center;">
+                                    <div style="text-align: center; font-size: 10pt;">
                                         Contenance: &nbsp;&nbsp; <strong>{{ surface_ha_a_ca_formatted }}</strong>
                                     </div>
                                 </div>
@@ -517,17 +535,19 @@ class PDFGenerator:
                             
                             <div class="map-masse">
                                 <img src="data:image/png;base64,{{ img_masse }}" alt="Masse">
-                                <div class="map-masse-scale">ECHELLE : {{ echelle_2 }}</div>
                             </div>
                         </div>
                         
                         <table class="plan-footer">
                             <tr>
                             <td class="plan-footer-left">
-                                N°: {{ dossier }}<br><br>
                                 Copie certifiée conforme<br>
                                 {{ centre.capitalize() if centre else '......' }}, le :<br>
-                                Le Géomètre Assermenté du Cadastre
+                                Le Géomètre Assermenté du Cadastre<br><br>
+                                <span style="font-size: 7pt;">N°: {{ dossier }}</span>
+                            </td>
+                            <td class="plan-footer-center">
+                                ECHELLE : {{ echelle_2 }}
                             </td>
                             <td class="plan-footer-right">
                                 Levé et Dressé par <strong>{{ cabinet_nom }}</strong><br>
@@ -546,31 +566,20 @@ class PDFGenerator:
                         
                         <table class="table-coord-main">
                             <tr>
-                                <th>BORNES</th>
-                                <th>X</th>
-                                <th>Y</th>
-                                <th>ANGLES</th>
-                                <th>DISTANCES</th>
+                                <th style="width: 16%;">BORNES</th>
+                                <th style="width: 24%;">X</th>
+                                <th style="width: 24%;">Y</th>
+                                <th style="width: 18%;">ANGLES</th>
+                                <th style="width: 18%;">DISTANCES</th>
                             </tr>
                             {% for b in bornes_calc %}
-                            {% if b.x %}
                             <tr>
-                                <td>{{ b.nom }}</td>
-                                <td>{{ "%.3f"|format(b.x) }}</td>
-                                <td>{{ "%.3f"|format(b.y) }}</td>
-                                <td>{{ "%.3f"|format(b.angle) if b.angle else "100.000" }}</td>
-                                {% if loop.index0 < (bornes_calc|length - 1) %}
-                                <td rowspan="2" style="vertical-align: middle;">{{ "%.3f"|format(b.dist) if b.dist else "" }}</td>
-                                {% endif %}
+                                <td><strong>{{ b.nom }}</strong></td>
+                                <td>{{ "%.3f"|format(b.x) if b.x is not none else "" }}</td>
+                                <td>{{ "%.3f"|format(b.y) if b.y is not none else "" }}</td>
+                                <td>{{ "%.3f"|format(b.angle) if b.angle is not none else "" }}</td>
+                                <td>{{ "%.3f"|format(b.dist) if b.dist is not none else "" }}</td>
                             </tr>
-                            {% else %}
-                            <tr>
-                                <td>{{ b.nom }}</td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                            </tr>
-                            {% endif %}
                             {% endfor %}
                         </table>
                     </td>
@@ -594,9 +603,9 @@ class PDFGenerator:
 
         # ── Tailles de figure adaptées au format A3 ──
         if zoom_out:
-            fig, ax = plt.subplots(figsize=(4.5, 4.0))
+            fig, ax = plt.subplots(figsize=(4.8, 4.2))
         else:
-            fig, ax = plt.subplots(figsize=(8.0, 4.8))
+            fig, ax = plt.subplots(figsize=(8.5, 5.8))
 
         # ── Calculer la bounding box du lot principal ──
         xs_lot = [b[0] for b in bornes]
@@ -752,8 +761,13 @@ class PDFGenerator:
                         fontsize=14, ha='center', va='top', fontweight='bold')
 
         # ── Bordures ──
-        for spine in ax.spines.values():
-            spine.set_linewidth(1)
+        if zoom_out:
+            for spine in ax.spines.values():
+                spine.set_linewidth(1)
+        else:
+            # Plan de masse: pas de cadre rectangulaire autour du dessin (comme le document de référence)
+            for spine in ax.spines.values():
+                spine.set_visible(False)
 
         plt.tight_layout()
 

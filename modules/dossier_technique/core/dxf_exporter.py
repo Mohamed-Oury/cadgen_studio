@@ -63,8 +63,8 @@ class DXFExporter:
         ox = 0.0
         oy = 0.0
 
-        # Séparation gauche/droite (50/50 → chaque panneau ≈ A4)
-        sep_x = ox + W * 0.50   # 210 mm
+        # Séparation gauche/droite (58/42 comme le document de référence)
+        sep_x = ox + W * 0.58   # ~243.6 mm
 
         # Tailles de texte (en mm)
         t_tiny = 1.8
