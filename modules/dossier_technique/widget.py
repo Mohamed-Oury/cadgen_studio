@@ -423,6 +423,14 @@ class DossierTechniqueWidget(QWidget):
                     voisins[name] = v_info.get("bornes", [])
             data["voisins"] = voisins
             
+            # Ajouter les échelles et la surface pour le DXF
+            data["scale_5000"] = self.spin_scale_5000.value()
+            data["scale_500"] = self.spin_scale_500.value()
+            data["echelle_1"] = f"1/{self.spin_scale_5000.value()}"
+            data["echelle_2"] = f"1/{self.spin_scale_500.value()}"
+            if lot_info:
+                data["surface"] = f"{lot_info['geom'].area:.2f}"
+            
             exporter = DXFExporter()
             out_dir = self.form_widget.get_output_dir()
             output_filename = os.path.join(out_dir, f"Extrait_{ilot_name}_Lot_{lot_name}.dxf")

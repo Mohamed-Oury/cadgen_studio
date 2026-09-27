@@ -159,7 +159,7 @@ class PDFGenerator:
                    PAGE 4 - PLAN EXTRAIT
                    ======================= */
                 @page plan_page {
-                    size: A4 landscape;
+                    size: A3 landscape;
                     margin: 1cm;
                 }
                 .plan-container {
@@ -167,36 +167,37 @@ class PDFGenerator:
                     border: 1px solid black;
                     border-collapse: collapse;
                     page-break-inside: avoid;
+                    break-inside: avoid;
                 }
                 .plan-container td {
                     vertical-align: top;
-                    padding: 5px;
+                    padding: 6px;
                 }
                 .plan-left {
-                    width: 68%;
+                    width: 58%;
                     border-right: 1px solid black;
                 }
                 .plan-right {
-                    width: 32%;
+                    width: 42%;
                 }
                 
                 .plan-header {
                     width: 100%;
                     font-size: 7.5pt;
                     border-bottom: 1px solid black;
-                    margin-bottom: 10px;
-                    padding-bottom: 5px;
+                    margin-bottom: 6px;
+                    padding-bottom: 4px;
                 }
                 .plan-header td {
                     vertical-align: top;
                     border: none;
-                    padding: 0 5px;
+                    padding: 0 6px;
                 }
-                .plan-header-col1 { width: 30%; line-height: 1.3; text-align: center; }
-                .plan-header-col2 { width: 30%; line-height: 1.5; }
-                .plan-header-col3 { width: 40%; line-height: 1.2; }
+                .plan-header-col1 { width: 25%; line-height: 1.3; text-align: center; }
+                .plan-header-col2 { width: 20%; line-height: 1.4; }
+                .plan-header-col3 { width: 55%; line-height: 1.3; }
                 
-                .plan-header-col2 span { display: inline-block; width: 60px; }
+                .plan-header-col2 span { display: inline-block; width: 65px; }
                 
                 .plan-content {
                     width: 100%;
@@ -205,7 +206,7 @@ class PDFGenerator:
                 .situation-row {
                     display: table;
                     width: 100%;
-                    margin-bottom: 10px;
+                    margin-bottom: 6px;
                 }
                 .situation-col1 {
                     display: table-cell;
@@ -216,8 +217,8 @@ class PDFGenerator:
                     display: table-cell;
                     width: 60%;
                     vertical-align: top;
-                    padding-left: 20px;
-                    font-size: 10pt;
+                    padding-left: 15px;
+                    font-size: 9pt;
                 }
                 
                 .map-situation {
@@ -226,7 +227,14 @@ class PDFGenerator:
                     background: white;
                     text-align: center;
                 }
-                .map-situation img { max-width: 100%; max-height: 130px; object-fit: contain; }
+                .map-situation img {
+                    max-width: 100%;
+                    max-height: 135px;
+                    height: auto;
+                    object-fit: contain;
+                    display: block;
+                    margin: 0 auto;
+                }
                 .scale-box {
                     border-top: 1px solid black;
                     text-align: center;
@@ -240,43 +248,52 @@ class PDFGenerator:
                     width: 100%;
                     text-align: center;
                 }
-                .map-masse img { max-width: 100%; max-height: 290px; object-fit: contain; }
+                .map-masse img {
+                    max-width: 100%;
+                    max-height: 280px;
+                    height: auto;
+                    object-fit: contain;
+                    display: block;
+                    margin: 0 auto;
+                }
                 .map-masse-scale {
-                    font-size: 9pt;
+                    font-size: 8.5pt;
                     font-weight: bold;
-                    margin-top: -10px;
+                    margin-top: 3px;
                 }
                 
                 .plan-footer {
                     width: 100%;
-                    font-size: 7.5pt;
-                    margin-top: 10px;
+                    font-size: 7pt;
+                    margin-top: 6px;
+                    line-height: 1.25;
                 }
                 .plan-footer td {
                     vertical-align: top;
                     border: none;
                 }
-                .plan-footer-left { width: 50%; line-height: 1.4; font-weight: bold; }
+                .plan-footer-left { width: 50%; line-height: 1.3; font-weight: bold; }
                 .plan-footer-right { width: 50%; text-align: center; line-height: 1.2; }
                 
                 .coord-title {
                     text-align: center;
-                    font-size: 14pt;
-                    margin: 0 0 5px 0;
+                    font-size: 12pt;
+                    font-weight: bold;
+                    margin: 0 0 3px 0;
                 }
                 .coord-subtitle {
                     text-align: center;
-                    font-size: 9pt;
-                    margin-bottom: 10px;
+                    font-size: 8pt;
+                    margin-bottom: 6px;
                 }
                 .table-coord-main {
                     width: 100%;
                     border-collapse: collapse;
-                    font-size: 8pt;
+                    font-size: 7.5pt;
                 }
                 .table-coord-main th, .table-coord-main td {
                     border: 1px solid black;
-                    padding: 4px;
+                    padding: 3px 2px;
                     text-align: center;
                     vertical-align: middle;
                 }
@@ -450,7 +467,7 @@ class PDFGenerator:
             </div>
             
             <!-- PAGE 4: Plan Extrait (Landscape) -->
-            <div style="page: plan_page;">
+            <div style="page: plan_page; page-break-before: always; break-before: always;">
                 <table class="plan-container">
                     <tr>
                     <td class="plan-left">
@@ -566,108 +583,185 @@ class PDFGenerator:
         """
         
     def render_plot_to_base64(self, bornes, voisins=None, zoom_out=False, show_grid_ticks=True):
+        """Génère une image PNG en base64 du plan.
+        
+        zoom_out=True  → Plan de situation (1/5000): vue large, lot rempli en noir
+        zoom_out=False → Plan de masse (1/500): vue détaillée avec bornes, distances,
+                         et coordonnées sur les axes (comme le document de référence)
+        """
         if not bornes:
             return ""
-            
-        fig, ax = plt.subplots(figsize=(8, 6) if not zoom_out else (4, 4))
-        
-        # Dessiner les voisins (maillage) en premier plan/arrière plan
+
+        # ── Tailles de figure adaptées au format A3 ──
+        if zoom_out:
+            fig, ax = plt.subplots(figsize=(4.5, 4.0))
+        else:
+            fig, ax = plt.subplots(figsize=(8.0, 4.8))
+
+        # ── Calculer la bounding box du lot principal ──
+        xs_lot = [b[0] for b in bornes]
+        ys_lot = [b[1] for b in bornes]
+        min_x_lot, max_x_lot = min(xs_lot), max(xs_lot)
+        min_y_lot, max_y_lot = min(ys_lot), max(ys_lot)
+        lot_width = max_x_lot - min_x_lot
+        lot_height = max_y_lot - min_y_lot
+        cx_lot = (min_x_lot + max_x_lot) / 2.0
+        cy_lot = (min_y_lot + max_y_lot) / 2.0
+
+        # ── Pour le plan de masse: garder UNIQUEMENT les 2 voisins les plus proches ──
+        if not zoom_out and voisins:
+            def get_neighbor_distance(pts):
+                min_d = min(math.hypot(px - lx, py - ly) for px, py in pts for lx, ly in bornes)
+                vcx = sum(p[0] for p in pts) / len(pts)
+                vcy = sum(p[1] for p in pts) / len(pts)
+                cd = math.hypot(vcx - cx_lot, vcy - cy_lot)
+                return (min_d, cd)
+
+            valid_voisins = [
+                (name, pts) for name, pts in voisins.items()
+                if pts and len(pts) >= 3
+            ]
+            valid_voisins.sort(key=lambda item: get_neighbor_distance(item[1]))
+            voisins = dict(valid_voisins[:2])
+
+        # ── Dessiner les voisins ──
         if voisins:
             for nom_voisin, pts_voisin in voisins.items():
                 if len(pts_voisin) >= 3:
-                    vx = [p[0] for p in pts_voisin]
-                    vy = [p[1] for p in pts_voisin]
-                    vx.append(vx[0])
-                    vy.append(vy[0])
-                    # Ligne pointillée fine pour les voisins
-                    ax.plot(vx, vy, 'k--', linewidth=0.5, alpha=0.6)
+                    vx = [p[0] for p in pts_voisin] + [pts_voisin[0][0]]
+                    vy = [p[1] for p in pts_voisin] + [pts_voisin[0][1]]
+                    lw = 0.8 if zoom_out else 1.2
+                    ax.plot(vx, vy, 'k--', linewidth=lw, alpha=0.65)
                     # Label du voisin
-                    cx = sum(vx[:-1]) / len(pts_voisin)
-                    cy = sum(vy[:-1]) / len(pts_voisin)
-                    ax.text(cx, cy, nom_voisin, fontsize=7 if zoom_out else 9, 
-                            ha='center', va='center', alpha=0.8, fontweight='bold')
-                            
-        # Dessiner le lot principal (trait plein, plus épais)
-        # Dessiner le polygone principal
-        xs = [b[0] for b in bornes] + [bornes[0][0]]
-        ys = [b[1] for b in bornes] + [bornes[0][1]]
-        ax.plot(xs, ys, 'k-', linewidth=2)
-        
+                    vcx = sum(p[0] for p in pts_voisin) / len(pts_voisin)
+                    vcy = sum(p[1] for p in pts_voisin) / len(pts_voisin)
+                    fs = 8 if zoom_out else 11
+                    ax.text(vcx, vcy, nom_voisin, fontsize=fs,
+                            ha='center', va='center', alpha=0.85, fontweight='bold')
+
+        # ── Dessiner le lot principal ──
+        xs = xs_lot + [bornes[0][0]]
+        ys = ys_lot + [bornes[0][1]]
+        ax.plot(xs, ys, 'k-', linewidth=2.5 if not zoom_out else 1.5)
+
         if zoom_out:
-            # Pour la carte de situation (1/5000), remplir le lot en noir
+            # Plan de situation: remplir le lot en noir
             ax.fill(xs, ys, 'k')
-        
-        # Définir les limites de la carte pour se concentrer sur le lot principal
+
+        # ── Définir les limites (zoom) ──
+        if zoom_out:
+            # Plan de situation: vue large englobant tout l'îlot
+            all_x = list(xs_lot)
+            all_y = list(ys_lot)
+            if voisins:
+                for pts_v in voisins.values():
+                    if pts_v:
+                        all_x.extend(p[0] for p in pts_v)
+                        all_y.extend(p[1] for p in pts_v)
+            ax_min, ax_max = min(all_x), max(all_x)
+            ay_min, ay_max = min(all_y), max(all_y)
+            view_w = ax_max - ax_min
+            view_h = ay_max - ay_min
+            margin = max(view_w, view_h) * 0.15
+            margin = max(margin, max(lot_width, lot_height) * 1.5)
+            ax.set_xlim(ax_min - margin, ax_max + margin)
+            ax.set_ylim(ay_min - margin, ay_max + margin)
+        else:
+            # Plan de masse: vue centrée sur le lot et ses 2 voisins les plus proches
+            all_x = list(xs_lot)
+            all_y = list(ys_lot)
+            if voisins:
+                for pts_v in voisins.values():
+                    if pts_v:
+                        all_x.extend(p[0] for p in pts_v)
+                        all_y.extend(p[1] for p in pts_v)
+            ax_min, ax_max = min(all_x), max(all_x)
+            ay_min, ay_max = min(all_y), max(all_y)
+            view_w = ax_max - ax_min
+            view_h = ay_max - ay_min
+            margin_x = max(view_w * 0.10, 4.0)
+            margin_y = max(view_h * 0.10, 4.0)
+            ax.set_xlim(ax_min - margin_x, ax_max + margin_x)
+            ax.set_ylim(ay_min - margin_y, ay_max + margin_y)
+
+        # ── Bornes + distances (plan de masse uniquement) ──
         if not zoom_out:
-            min_x, max_x = min(xs), max(xs)
-            min_y, max_y = min(ys), max(ys)
-            width = max_x - min_x
-            height = max_y - min_y
-            # Margin = 30% of the size, or at least 10 meters (pour agrandir les lots)
-            margin_x = max(width * 0.3, 10)
-            margin_y = max(height * 0.3, 10)
-            ax.set_xlim(min_x - margin_x, max_x + margin_x)
-            ax.set_ylim(min_y - margin_y, max_y + margin_y)
-            
-        # Placer les noms des bornes et les distances (seulement pour la carte de masse 1/500)
-        if not zoom_out:
-            for i, (x, y) in enumerate(bornes):
-                ax.plot(x, y, 'ko', markersize=3)
-                ax.text(x, y, f' B{i+1}', fontsize=10, verticalalignment='bottom')
-                
-                # Add distances on the edges
-                if i < len(bornes):
-                    p1 = bornes[i]
-                    p2 = bornes[(i+1)%len(bornes)]
-                dist = math.sqrt((p2[0]-p1[0])**2 + (p2[1]-p1[1])**2)
+            for i, (bx, by) in enumerate(bornes):
+                ax.plot(bx, by, 'ko', markersize=5)
+                ax.text(bx, by, f'  B{i+1}', fontsize=11, fontweight='bold',
+                        verticalalignment='bottom')
+
+                # Distance sur le segment vers la borne suivante
+                p1 = bornes[i]
+                p2 = bornes[(i + 1) % len(bornes)]
+                dist = math.hypot(p2[0] - p1[0], p2[1] - p1[1])
                 mid_x = (p1[0] + p2[0]) / 2
                 mid_y = (p1[1] + p2[1]) / 2
-                
-                # Calculate angle for text rotation
-                angle = math.degrees(math.atan2(p2[1]-p1[1], p2[0]-p1[0]))
-                if angle > 90: angle -= 180
-                elif angle < -90: angle += 180
-                
-                ax.text(mid_x, mid_y, f"{dist:.3f}", fontsize=8, 
-                        ha='center', va='bottom', rotation=angle)
-        
+
+                angle = math.degrees(math.atan2(p2[1] - p1[1], p2[0] - p1[0]))
+                if angle > 90:
+                    angle -= 180
+                elif angle < -90:
+                    angle += 180
+
+                ax.text(mid_x, mid_y, f"{dist:.3f}", fontsize=9.5,
+                        ha='center', va='bottom', rotation=angle, fontweight='bold')
+
         ax.set_aspect('equal')
-        
-        # Grid customization
-        if show_grid_ticks:
+
+        # ── Grille et axes ──
+        if show_grid_ticks and not zoom_out:
+            import matplotlib.ticker as mticker
             ax.grid(False)
-            ax.set_xticks(ax.get_xticks(), minor=False)
-            ax.set_yticks(ax.get_yticks(), minor=False)
-            ax.set_xticklabels([])
-            ax.set_yticklabels([])
-            ax.tick_params(axis='both', which='major', length=0)
-            # Add grid crosses manually inside the plot
-            for xt in ax.get_xticks():
-                for yt in ax.get_yticks():
-                    ax.plot(xt, yt, marker='+', color='grey', markersize=8, alpha=0.5)
-        else:
-            ax.grid(True, linestyle='--', alpha=0.5)
+            ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=6, integer=False))
+            ax.yaxis.set_major_locator(mticker.MaxNLocator(nbins=5, integer=False))
+            ax.tick_params(axis='both', which='major', labelsize=8, direction='inout', length=5)
+            plt.setp(ax.get_xticklabels(), rotation=0, ha='center')
+            ax.xaxis.set_major_formatter(mticker.FormatStrFormatter('%.0f'))
+            ax.yaxis.set_major_formatter(mticker.FormatStrFormatter('%.0f'))
+            xticks = ax.get_xticks()
+            yticks = ax.get_yticks()
+            for xt in xticks:
+                for yt in yticks:
+                    xlim = ax.get_xlim()
+                    ylim = ax.get_ylim()
+                    if xlim[0] <= xt <= xlim[1] and ylim[0] <= yt <= ylim[1]:
+                        ax.plot(xt, yt, marker='+', color='grey', markersize=8, alpha=0.4)
+            for xt in xticks:
+                xlim = ax.get_xlim()
+                if xlim[0] <= xt <= xlim[1]:
+                    ax.axvline(x=xt, color='grey', linewidth=0.3, alpha=0.25, linestyle=':')
+            for yt in yticks:
+                ylim = ax.get_ylim()
+                if ylim[0] <= yt <= ylim[1]:
+                    ax.axhline(y=yt, color='grey', linewidth=0.3, alpha=0.25, linestyle=':')
+        elif not show_grid_ticks and zoom_out:
             ax.set_xticklabels([])
             ax.set_yticklabels([])
             ax.tick_params(axis='both', length=0)
-            
-        # Draw North arrow if zoom_out
+        else:
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+            ax.tick_params(axis='both', length=0)
+
+        # ── Flèche Nord (plan de situation) ──
         if zoom_out:
-            ax.annotate('N', xy=(0.9, 0.9), xycoords='axes fraction', 
-                        xytext=(0.9, 0.75), textcoords='axes fraction',
-                        arrowprops=dict(facecolor='black', width=2, headwidth=8),
-                        fontsize=12, ha='center', va='top')
-                        
-        # Hide spines for cleaner look
+            ax.annotate('N', xy=(0.92, 0.92), xycoords='axes fraction',
+                        xytext=(0.92, 0.78), textcoords='axes fraction',
+                        arrowprops=dict(facecolor='black', width=2.5, headwidth=10),
+                        fontsize=14, ha='center', va='top', fontweight='bold')
+
+        # ── Bordures ──
         for spine in ax.spines.values():
             spine.set_linewidth(1)
-        
+
         plt.tight_layout()
-        
+
         buf = BytesIO()
-        plt.savefig(buf, format='png', dpi=200, transparent=True, bbox_inches='tight', pad_inches=0.1)
+        plt.savefig(buf, format='png', dpi=200, transparent=True,
+                    bbox_inches='tight', pad_inches=0.08)
         plt.close(fig)
-        
+
         return base64.b64encode(buf.getvalue()).decode('utf-8')
         
     def _format_surface_html(self, surface_m2):
