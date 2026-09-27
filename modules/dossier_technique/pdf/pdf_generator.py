@@ -174,11 +174,11 @@ class PDFGenerator:
                     padding: 6px;
                 }
                 .plan-left {
-                    width: 58%;
+                    width: 50%;
                     border-right: 1px solid black;
                 }
                 .plan-right {
-                    width: 42%;
+                    width: 50%;
                 }
                 
                 .plan-header {

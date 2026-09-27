@@ -277,13 +277,17 @@ class DXFExporter:
         masse_left = ox + 5.0
         masse_right = sep_x - 5.0
         masse_w = masse_right - masse_left
-        masse_h = masse_top - masse_bottom
-        masse_cx = (masse_left + masse_right) / 2.0
-        masse_cy = (masse_top + masse_bottom) / 2.0
-
         # Échelle 1/500 réelle : 1 mètre réel = 1000mm / 500 = 2mm sur papier
         scale_500 = full_data.get('scale_500', 500)
         masse_paper_scale = 1000.0 / scale_500  # mm par mètre
+
+        # Repères réels A3 paysage (420 × 297 mm) :
+        # Panneau gauche = 210 × 297 mm
+        # Le tracé de bornage B1-B2-B3-B4 (~48×48 mm) est centré horizontalement à masse_cx = 105 mm.
+        # Son coin haut (B1) est situé à 40-45% de la hauteur depuis le haut (soit Y ≈ 170.8 mm).
+        lot_h_paper = lot_h * masse_paper_scale
+        masse_cx = ox + sep_x * 0.50  # 105.0 mm (centré dans le panneau gauche)
+        masse_cy = (oy + H * 0.575) - (lot_h_paper / 2.0)  # Centre Y calculé pour que le haut soit à 42.5%
 
         def world_to_masse(wx, wy):
             return (
@@ -355,10 +359,12 @@ class DXFExporter:
                 align=TextEntityAlignment.CENTER
             )
 
-        # Label échelle masse
+        # Label échelle masse positionné sous le tracé
         echelle_2 = full_data.get('echelle_2', f"1/{scale_500}")
+        lot_bottom_paper = masse_cy - (lot_h_paper / 2.0)
+        echelle_y = max(lot_bottom_paper - 8.0, footer_top + 6.0)
         add_text(f"ECHELLE : {echelle_2}", masse_cx,
-                 masse_bottom - 5.0, t_bold, align='CENTER', layer='TEXTES_BOLD')
+                 echelle_y, t_bold, align='CENTER', layer='TEXTES_BOLD')
 
         # ══════════════════════════════════════════════════════
         # PIED DE PAGE GAUCHE
