@@ -245,7 +245,7 @@ class DXFExporter:
         sit_x = ox + 6.0
         sit_y = content_top
         sit_w = 75.0
-        sit_h = 50.0
+        sit_h = 60.0
 
         # Cadre rectangulaire situation
         msp.add_lwpolyline(
@@ -434,15 +434,18 @@ class DXFExporter:
         y_grid_start = math.floor((min_my - 20.0) / grid_step) * grid_step
         y_grid_end = math.ceil((max_my + 20.0) / grid_step) * grid_step
 
+        masse_top_limit = content_top - sit_h - scale_box_h - 4.0
+        masse_bot_limit = footer_top + 4.0
+
         gx = x_grid_start
         while gx <= x_grid_end:
             gy = y_grid_start
             while gy <= y_grid_end:
                 pmx, pmy = world_to_masse(gx, gy)
                 # Vérifier que la croix est dans la zone du plan de masse
-                if (ox + 8.0 <= pmx <= sep_x - 8.0) and (footer_top + 4.0 <= pmy <= content_top - sit_h - scale_box_h - 4.0):
+                if (ox + 8.0 <= pmx <= sep_x - 8.0) and (masse_bot_limit <= pmy <= masse_top_limit):
                     # Tracer petite croix (+)
-                    cr_len = 2.0
+                    cr_len = 1.8
                     msp.add_line((pmx - cr_len, pmy), (pmx + cr_len, pmy),
                                  dxfattribs={'layer': 'CARROYAGE'})
                     msp.add_line((pmx, pmy - cr_len), (pmx, pmy + cr_len),

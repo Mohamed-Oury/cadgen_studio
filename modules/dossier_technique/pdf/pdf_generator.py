@@ -160,11 +160,11 @@ class PDFGenerator:
                    ======================= */
                 @page plan_page {
                     size: A3 landscape;
-                    margin: 1cm;
+                    margin: 0.5cm;
                 }
                 .plan-container {
                     width: 100%;
-                    height: 268mm;
+                    height: 285mm;
                     border: 1px solid black;
                     border-collapse: collapse;
                     page-break-inside: avoid;
@@ -173,19 +173,19 @@ class PDFGenerator:
                 }
                 .plan-container td {
                     vertical-align: top;
-                    padding: 8px 12px;
+                    padding: 6px 10px;
                 }
                 .plan-left {
-                    width: 55%;
+                    width: 58%;
                     border-right: 1px solid black;
                 }
                 .plan-right {
-                    width: 40%;
+                    width: 42%;
                 }
                 
                 .plan-header {
                     width: 100%;
-                    font-size: 8pt;
+                    font-size: 8.5pt;
                     border-bottom: 1px solid black;
                     margin-bottom: 8px;
                     padding-bottom: 6px;
@@ -208,25 +208,25 @@ class PDFGenerator:
                 .situation-row {
                     display: table;
                     width: 100%;
-                    margin-bottom: 6px;
+                    margin-bottom: 8px;
                 }
                 .situation-col1 {
                     display: table-cell;
-                    width: 36%;
+                    width: 40%;
                     vertical-align: top;
                 }
                 .situation-arrow {
                     display: table-cell;
-                    width: 10%;
+                    width: 8%;
                     vertical-align: middle;
                     text-align: center;
                 }
                 .situation-col2 {
                     display: table-cell;
-                    width: 54%;
+                    width: 52%;
                     vertical-align: middle;
                     padding-left: 10px;
-                    font-size: 9pt;
+                    font-size: 9.5pt;
                 }
                 
                 .map-situation {
@@ -238,28 +238,28 @@ class PDFGenerator:
                 }
                 .map-situation img {
                     width: 100%;
-                    height: 145px;
-                    object-fit: fill;
+                    height: 185px;
+                    object-fit: contain;
                     display: block;
-                    margin: 0;
+                    margin: 0 auto;
                 }
                 .scale-box {
                     border-top: 1px solid black;
                     text-align: center;
-                    font-size: 8.5pt;
+                    font-size: 9pt;
                     font-weight: bold;
                     background: white;
-                    padding: 2px 0;
+                    padding: 3px 0;
                 }
                 
                 .map-masse {
                     width: 100%;
                     text-align: center;
-                    margin: 4px 0;
+                    margin: 2px 0 0 0;
                 }
                 .map-masse img {
                     max-width: 100%;
-                    max-height: 440px;
+                    max-height: 490px;
                     height: auto;
                     object-fit: contain;
                     display: block;
@@ -269,8 +269,8 @@ class PDFGenerator:
                 .plan-footer {
                     width: 100%;
                     font-size: 7.5pt;
-                    margin-top: 12px;
-                    line-height: 1.35;
+                    margin-top: 2px;
+                    line-height: 1.3;
                 }
                 .plan-footer td {
                     vertical-align: bottom;
@@ -604,8 +604,8 @@ class PDFGenerator:
 
         # ── Tailles de figure adaptées au format A3 ──
         if zoom_out:
-            # Aspect ratio 75mm / 55mm = 1.3636
-            fig = plt.figure(figsize=(4.5, 3.3))
+            # Aspect ratio 95mm / 70mm = 1.357
+            fig = plt.figure(figsize=(4.5, 3.315))
             ax = fig.add_axes([0, 0, 1, 1])
         else:
             fig, ax = plt.subplots(figsize=(8.5, 5.8))
@@ -622,10 +622,10 @@ class PDFGenerator:
 
         if zoom_out:
             # ── 1. Plan de situation (1/5000) ──
-            # Le cadre sur papier mesure environ 75mm x 55mm.
-            # À l'échelle 1/5000 -> 0.075 * 5000 = 375m de large, 0.055 * 5000 = 275m de haut sur le terrain.
-            w_view = 0.075 * scale
-            h_view = 0.055 * scale
+            # Le cadre sur papier mesure environ 95mm x 70mm (hauteur 185px).
+            # À l'échelle 1/5000 -> 0.095 * 5000 = 475m de large, 0.070 * 5000 = 350m de haut sur le terrain.
+            w_view = 0.095 * scale
+            h_view = 0.070 * scale
             ax_min, ax_max = cx_lot - w_view / 2.0, cx_lot + w_view / 2.0
             ay_min, ay_max = cy_lot - h_view / 2.0, cy_lot + h_view / 2.0
 
@@ -701,7 +701,7 @@ class PDFGenerator:
             ys = ys_lot + [bornes[0][1]]
             ax.plot(xs, ys, 'k-', linewidth=2.5)
 
-            # Définir les limites du plan de masse
+            # Définir les limites du plan de masse (1/500) avec marge généreuse pour "respirer au milieu"
             all_x = list(xs_lot)
             all_y = list(ys_lot)
             if voisins:
@@ -713,10 +713,27 @@ class PDFGenerator:
             ay_min, ay_max = min(all_y), max(all_y)
             view_w = ax_max - ax_min
             view_h = ay_max - ay_min
-            margin_x = max(view_w * 0.10, 4.0)
-            margin_y = max(view_h * 0.10, 4.0)
-            ax.set_xlim(ax_min - margin_x, ax_max + margin_x)
-            ax.set_ylim(ay_min - margin_y, ay_max + margin_y)
+
+            # Marge confortable (35%) pour laisser le dessin respirer au milieu
+            margin_w = max(view_w * 0.35, 12.0)
+            margin_h = max(view_h * 0.35, 12.0)
+
+            total_w = view_w + 2 * margin_w
+            total_h = view_h + 2 * margin_h
+
+            target_ratio = 8.5 / 5.8
+            current_ratio = total_w / total_h
+
+            if current_ratio < target_ratio:
+                total_w = total_h * target_ratio
+            else:
+                total_h = total_w / target_ratio
+
+            cx = (ax_min + ax_max) / 2.0
+            cy = (ay_min + ay_max) / 2.0
+
+            ax.set_xlim(cx - total_w / 2.0, cx + total_w / 2.0)
+            ax.set_ylim(cy - total_h / 2.0, cy + total_h / 2.0)
 
             # Bornes + distances
             for i, (bx, by) in enumerate(bornes):

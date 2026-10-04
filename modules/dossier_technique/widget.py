@@ -242,11 +242,11 @@ class DossierTechniqueWidget(QWidget):
             scale_5000 = self.spin_scale_5000.value()
             scale_500 = self.spin_scale_500.value()
             
-            w_5000 = 0.075 * scale_5000
-            h_5000 = 0.055 * scale_5000
+            w_5000 = 0.095 * scale_5000
+            h_5000 = 0.070 * scale_5000
             
-            w_500 = 0.075 * scale_500
-            h_500 = 0.055 * scale_500
+            w_500 = 0.095 * scale_500
+            h_500 = 0.070 * scale_500
             
             self.map_viewer.update_preview_boxes(centroid.x, centroid.y, w_5000, h_5000, w_500, h_500)
             self.map_viewer.preview_box_5000.show()

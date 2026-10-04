@@ -32,8 +32,8 @@ class WordGenerator:
         cy_lot = (min_y_lot + max_y_lot) / 2.0
 
         if zoom_out:
-            w_view = 0.075 * scale
-            h_view = 0.055 * scale
+            w_view = 0.095 * scale
+            h_view = 0.070 * scale
             ax_min, ax_max = cx_lot - w_view / 2.0, cx_lot + w_view / 2.0
             ay_min, ay_max = cy_lot - h_view / 2.0, cy_lot + h_view / 2.0
 
@@ -88,14 +88,37 @@ class WordGenerator:
             ys = ys_lot + [bornes[0][1]]
             ax.plot(xs, ys, 'k-', linewidth=2)
 
-            min_x, max_x = min(xs), max(xs)
-            min_y, max_y = min(ys), max(ys)
-            width = max_x - min_x
-            height = max_y - min_y
-            margin_x = max(width * 0.3, 10)
-            margin_y = max(height * 0.3, 10)
-            ax.set_xlim(min_x - margin_x, max_x + margin_x)
-            ax.set_ylim(min_y - margin_y, max_y + margin_y)
+            all_x = list(xs_lot)
+            all_y = list(ys_lot)
+            if voisins:
+                for pts_v in voisins.values():
+                    if pts_v:
+                        all_x.extend(p[0] for p in pts_v)
+                        all_y.extend(p[1] for p in pts_v)
+            ax_min, ax_max = min(all_x), max(all_x)
+            ay_min, ay_max = min(all_y), max(all_y)
+            view_w = ax_max - ax_min
+            view_h = ay_max - ay_min
+
+            margin_w = max(view_w * 0.35, 12.0)
+            margin_h = max(view_h * 0.35, 12.0)
+
+            total_w = view_w + 2 * margin_w
+            total_h = view_h + 2 * margin_h
+
+            target_ratio = 8.0 / 6.0
+            current_ratio = total_w / total_h
+
+            if current_ratio < target_ratio:
+                total_w = total_h * target_ratio
+            else:
+                total_h = total_w / target_ratio
+
+            cx = (ax_min + ax_max) / 2.0
+            cy = (ay_min + ay_max) / 2.0
+
+            ax.set_xlim(cx - total_w / 2.0, cx + total_w / 2.0)
+            ax.set_ylim(cy - total_h / 2.0, cy + total_h / 2.0)
         
             for i, (x, y) in enumerate(bornes):
                 ax.plot(x, y, 'ko', markersize=3)
