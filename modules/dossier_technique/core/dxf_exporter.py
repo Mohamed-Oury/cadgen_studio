@@ -146,14 +146,11 @@ class DXFExporter:
         # 2. EN-TÊTE DU PANNEAU GAUCHE (3 colonnes)
         # ══════════════════════════════════════════════════════
         header_top = oy + H
-        header_bottom = oy + H - 48.0   # Ligne horizontale à Y=249.0 mm
-        msp.add_line((ox, header_bottom), (sep_x, header_bottom), dxfattribs={'layer': 'CADRE'})
+        header_bottom = oy + H - 48.0   # Hauteur théorique de l'en-tête (Y=249.0 mm)
 
-        # Lignes verticales internes de l'en-tête
+        # Colonnes virtuelles de l'en-tête sans bordures internes
         hcol2_x = ox + 60.0
         hcol3_x = ox + 115.0
-        msp.add_line((hcol2_x, header_top), (hcol2_x, header_bottom), dxfattribs={'layer': 'CADRE'})
-        msp.add_line((hcol3_x, header_top), (hcol3_x, header_bottom), dxfattribs={'layer': 'CADRE'})
 
         # Colonne 1 : République & Ministère (centrée ou à gauche bien aérée)
         col1_x = ox + 5.0
@@ -185,8 +182,7 @@ class DXFExporter:
         # ══════════════════════════════════════════════════════
         # 3. PIED DE PAGE DU PANNEAU GAUCHE
         # ══════════════════════════════════════════════════════
-        footer_top = oy + 38.0  # Ligne horizontale à Y=38.0 mm
-        msp.add_line((ox, footer_top), (sep_x, footer_top), dxfattribs={'layer': 'CADRE'})
+        footer_top = oy + 38.0  # Position virtuelle du footer (Y=38.0 mm sans bordure)
 
         # Contenu du footer (3 colonnes virtuelles)
         foot_y = footer_top - 5.0
@@ -264,7 +260,7 @@ class DXFExporter:
         scale_5000 = full_data.get('scale_5000', 5000) if isinstance(full_data, dict) else 5000
         echelle_1 = full_data.get('echelle_1', f"1/{scale_5000}") if isinstance(full_data, dict) else f"1/{scale_5000}"
         add_text(f"ECHELLE : {echelle_1}", sit_x + sit_w / 2.0,
-                 sit_y - sit_h - 4.2, t_small, align='CENTER', layer='TEXTES_BOLD')
+                 sit_y - sit_h - 3.0, t_small, align='MIDDLE_CENTER', layer='TEXTES_BOLD')
 
         # Transformation monde -> situation (échelle 1/5000 ou cadrage)
         sit_paper_scale = 1000.0 / scale_5000  # mm par mètre
@@ -277,12 +273,10 @@ class DXFExporter:
                 sit_cy + (wy - cy_lot) * sit_paper_scale
             )
 
-        def in_sit_box(px, py, margin=1.0):
-            return (sit_x - margin <= px <= sit_x + sit_w + margin) and (sit_y - sit_h - margin <= py <= sit_y + margin)
+        def in_sit_box(px, py, margin=0.0):
+            return (sit_x + margin <= px <= sit_x + sit_w - margin) and (sit_y - sit_h + margin <= py <= sit_y - margin)
 
-        # NOTE: Les calques d'arrière-plan (background_layers) sont retirés de la projection 1/5000.
-
-        # Dessiner tous les lots environnants en situation
+        # Dessiner tous les lots environnants en situation (confinés au cadre 1/5000)
         all_ilots = full_data.get('all_ilots', {}) if isinstance(full_data, dict) else {}
         if all_ilots:
             for i_name, ilot_data in all_ilots.items():
@@ -290,35 +284,48 @@ class DXFExporter:
                     l_bornes = lot_info.get('bornes', [])
                     if len(l_bornes) >= 3:
                         s_pts = [world_to_sit(p[0], p[1]) for p in l_bornes]
-                        if any(in_sit_box(p[0], p[1]) for p in s_pts):
-                            msp.add_lwpolyline(s_pts, close=True, dxfattribs={'layer': 'VOISINS'})
-                            lcx = sum(p[0] for p in s_pts) / len(s_pts)
-                            lcy = sum(p[1] for p in s_pts) / len(s_pts)
-                            if in_sit_box(lcx, lcy, margin=0.0):
-                                if math.hypot(lcx - sit_cx, lcy - sit_cy) > 3.0:
-                                    add_text(str(l_name), lcx, lcy, h=1.5, align='CENTER', layer='TEXTES')
+                        lcx = sum(p[0] for p in s_pts) / len(s_pts)
+                        lcy = sum(p[1] for p in s_pts) / len(s_pts)
+                        if in_sit_box(lcx, lcy, margin=0.0):
+                            clipped_pts = [
+                                (max(sit_x, min(sit_x + sit_w, pt[0])),
+                                 max(sit_y - sit_h, min(sit_y, pt[1])))
+                                for pt in s_pts
+                            ]
+                            msp.add_lwpolyline(clipped_pts, close=True, dxfattribs={'layer': 'VOISINS'})
+                            if math.hypot(lcx - sit_cx, lcy - sit_cy) > 3.0:
+                                add_text(str(l_name), lcx, lcy, h=1.5, align='CENTER', layer='TEXTES')
         elif voisins:
             for nom_v, pts_v in voisins.items():
                 if pts_v and len(pts_v) >= 3:
                     s_pts = [world_to_sit(p[0], p[1]) for p in pts_v]
-                    if any(in_sit_box(p[0], p[1]) for p in s_pts):
-                        msp.add_lwpolyline(s_pts, close=True, dxfattribs={'layer': 'VOISINS', 'linetype': 'DASHED'})
-                        vcx = sum(p[0] for p in s_pts) / len(s_pts)
-                        vcy = sum(p[1] for p in s_pts) / len(s_pts)
-                        if in_sit_box(vcx, vcy, margin=0.0):
-                            add_text(str(nom_v), vcx, vcy, h=1.5, align='CENTER', layer='TEXTES')
+                    vcx = sum(p[0] for p in s_pts) / len(s_pts)
+                    vcy = sum(p[1] for p in s_pts) / len(s_pts)
+                    if in_sit_box(vcx, vcy, margin=0.0):
+                        clipped_pts = [
+                            (max(sit_x, min(sit_x + sit_w, pt[0])),
+                             max(sit_y - sit_h, min(sit_y, pt[1])))
+                            for pt in s_pts
+                        ]
+                        msp.add_lwpolyline(clipped_pts, close=True, dxfattribs={'layer': 'VOISINS', 'linetype': 'DASHED'})
+                        add_text(str(nom_v), vcx, vcy, h=1.5, align='CENTER', layer='TEXTES')
 
         # Lot principal rempli (Hatch solide)
         sit_lot_pts = [world_to_sit(p[0], p[1]) for p in points]
+        clipped_lot_pts = [
+            (max(sit_x, min(sit_x + sit_w, pt[0])),
+             max(sit_y - sit_h, min(sit_y, pt[1])))
+            for pt in sit_lot_pts
+        ]
         try:
             hatch = msp.add_hatch(color=7, dxfattribs={'layer': 'PARCELLE_FILL'})
             hatch.paths.add_polyline_path(
-                [(p[0], p[1]) for p in sit_lot_pts],
+                [(p[0], p[1]) for p in clipped_lot_pts],
                 is_closed=True
             )
         except Exception:
             pass
-        msp.add_lwpolyline(sit_lot_pts, close=True, dxfattribs={'layer': 'PARCELLE'})
+        msp.add_lwpolyline(clipped_lot_pts, close=True, dxfattribs={'layer': 'PARCELLE'})
 
         # ── 4.B Flèche NORD cadastrale (entre situation et NOTA) ──
         north_cx = sit_x + sit_w + 14.0
@@ -407,15 +414,44 @@ class DXFExporter:
             valid_v.sort(key=lambda x: neighbor_distance(x[1]))
             masse_voisins = dict(valid_v[:2])
 
+        if not masse_voisins and all_ilots:
+            cand_v = {}
+            for i_name, ilot_data in all_ilots.items():
+                for l_name, lot_info in ilot_data.get('lots', {}).items():
+                    l_bornes = lot_info.get('bornes', [])
+                    if len(l_bornes) >= 3:
+                        min_d = min(math.hypot(px - lx, py - ly) for px, py in l_bornes for lx, ly in points)
+                        if 0.1 < min_d < 80.0:
+                            cand_v[str(l_name)] = l_bornes
+            if cand_v:
+                def n_dist(pts):
+                    min_d = min(math.hypot(px - lx, py - ly) for px, py in pts for lx, ly in points)
+                    vcx = sum(p[0] for p in pts) / len(pts)
+                    vcy = sum(p[1] for p in pts) / len(pts)
+                    cd = math.hypot(vcx - cx_lot, vcy - cy_lot)
+                    return (min_d, cd)
+                sorted_cand = sorted(cand_v.items(), key=lambda x: n_dist(x[1]))
+                masse_voisins = dict(sorted_cand[:2])
+
+        masse_top_limit = content_top - sit_h - scale_box_h - 4.0
+        masse_bot_limit = footer_top + 4.0
+
         for nom_v, pts_v in masse_voisins.items():
             m_pts = [world_to_masse(p[0], p[1]) for p in pts_v]
-            msp.add_lwpolyline(m_pts, close=True,
+            # Clipper m_pts au cadre du plan de masse pour éviter tout trait remontant vers le bloc 1/5000
+            clipped_m_pts = [
+                (max(ox + 8.0, min(sep_x - 8.0, pt[0])),
+                 max(masse_bot_limit, min(masse_top_limit, pt[1])))
+                for pt in m_pts
+            ]
+            msp.add_lwpolyline(clipped_m_pts, close=True,
                                dxfattribs={'layer': 'VOISINS', 'linetype': 'DASHED'})
             # Label voisin centré
             vc_x = sum(p[0] for p in pts_v) / len(pts_v)
             vc_y = sum(p[1] for p in pts_v) / len(pts_v)
             vmx, vmy = world_to_masse(vc_x, vc_y)
-            add_text(nom_v, vmx, vmy, t_small, align='CENTER')
+            if (ox + 10.0 <= vmx <= sep_x - 10.0) and (masse_bot_limit <= vmy <= masse_top_limit):
+                add_text(nom_v, vmx, vmy, t_small, align='CENTER')
 
         # ── 5.B Carroyage cadastral (Croix + aux coordonnées rondes) ──
         # Déterminer la zone de coordonnées couverte
@@ -437,6 +473,9 @@ class DXFExporter:
         masse_top_limit = content_top - sit_h - scale_box_h - 4.0
         masse_bot_limit = footer_top + 4.0
 
+        drawn_x_ticks = set()
+        drawn_y_ticks = set()
+
         gx = x_grid_start
         while gx <= x_grid_end:
             gy = y_grid_start
@@ -450,6 +489,17 @@ class DXFExporter:
                                  dxfattribs={'layer': 'CARROYAGE'})
                     msp.add_line((pmx, pmy - cr_len), (pmx, pmy + cr_len),
                                  dxfattribs={'layer': 'CARROYAGE'})
+
+                    # Ticks X sur l'axe du bas (texte seul, comme le PDF)
+                    if int(gx) not in drawn_x_ticks and (ox + 12.0 <= pmx <= sep_x - 12.0):
+                        drawn_x_ticks.add(int(gx))
+                        add_text(f"{int(gx)}", pmx, masse_bot_limit - 3.5, h=t_tiny, align='CENTER')
+
+                    # Ticks Y sur l'axe de gauche (texte seul, comme le PDF)
+                    if int(gy) not in drawn_y_ticks and (masse_bot_limit + 6.0 <= pmy <= masse_top_limit - 6.0):
+                        drawn_y_ticks.add(int(gy))
+                        add_text(f"{int(gy)}", ox + 14.0, pmy, h=t_tiny, align='LEFT')
+
                 gy += grid_step
             gx += grid_step
 

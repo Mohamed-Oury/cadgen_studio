@@ -239,9 +239,9 @@ class PDFGenerator:
                 .map-situation img {
                     width: 100%;
                     height: 185px;
-                    object-fit: contain;
+                    object-fit: fill;
                     display: block;
-                    margin: 0 auto;
+                    margin: 0;
                 }
                 .scale-box {
                     border-top: 1px solid black;
@@ -255,11 +255,11 @@ class PDFGenerator:
                 .map-masse {
                     width: 100%;
                     text-align: center;
-                    margin: 2px 0 0 0;
+                    margin: 0;
                 }
                 .map-masse img {
                     max-width: 100%;
-                    max-height: 490px;
+                    max-height: 560px;
                     height: auto;
                     object-fit: contain;
                     display: block;
@@ -608,7 +608,7 @@ class PDFGenerator:
             fig = plt.figure(figsize=(4.5, 3.315))
             ax = fig.add_axes([0, 0, 1, 1])
         else:
-            fig, ax = plt.subplots(figsize=(8.5, 5.8))
+            fig, ax = plt.subplots(figsize=(8.5, 6.2))
 
         # ── Calculer la bounding box et le centroïde du lot principal ──
         xs_lot = [b[0] for b in bornes]
@@ -721,7 +721,7 @@ class PDFGenerator:
             total_w = view_w + 2 * margin_w
             total_h = view_h + 2 * margin_h
 
-            target_ratio = 8.5 / 5.8
+            target_ratio = 8.5 / 6.2
             current_ratio = total_w / total_h
 
             if current_ratio < target_ratio:
