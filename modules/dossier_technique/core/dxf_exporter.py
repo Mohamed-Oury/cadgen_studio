@@ -277,12 +277,36 @@ class DXFExporter:
                 sit_cy + (wy - cy_lot) * sit_paper_scale
             )
 
-        # Dessiner voisins en situation
-        for nom_v, pts_v in voisins.items():
-            if pts_v and len(pts_v) >= 3:
-                s_pts = [world_to_sit(p[0], p[1]) for p in pts_v]
-                msp.add_lwpolyline(s_pts, close=True,
-                                   dxfattribs={'layer': 'VOISINS', 'linetype': 'DASHED'})
+        def in_sit_box(px, py, margin=1.0):
+            return (sit_x - margin <= px <= sit_x + sit_w + margin) and (sit_y - sit_h - margin <= py <= sit_y + margin)
+
+        # NOTE: Les calques d'arrière-plan (background_layers) sont retirés de la projection 1/5000.
+
+        # Dessiner tous les lots environnants en situation
+        all_ilots = full_data.get('all_ilots', {}) if isinstance(full_data, dict) else {}
+        if all_ilots:
+            for i_name, ilot_data in all_ilots.items():
+                for l_name, lot_info in ilot_data.get('lots', {}).items():
+                    l_bornes = lot_info.get('bornes', [])
+                    if len(l_bornes) >= 3:
+                        s_pts = [world_to_sit(p[0], p[1]) for p in l_bornes]
+                        if any(in_sit_box(p[0], p[1]) for p in s_pts):
+                            msp.add_lwpolyline(s_pts, close=True, dxfattribs={'layer': 'VOISINS'})
+                            lcx = sum(p[0] for p in s_pts) / len(s_pts)
+                            lcy = sum(p[1] for p in s_pts) / len(s_pts)
+                            if in_sit_box(lcx, lcy, margin=0.0):
+                                if math.hypot(lcx - sit_cx, lcy - sit_cy) > 3.0:
+                                    add_text(str(l_name), lcx, lcy, h=1.5, align='CENTER', layer='TEXTES')
+        elif voisins:
+            for nom_v, pts_v in voisins.items():
+                if pts_v and len(pts_v) >= 3:
+                    s_pts = [world_to_sit(p[0], p[1]) for p in pts_v]
+                    if any(in_sit_box(p[0], p[1]) for p in s_pts):
+                        msp.add_lwpolyline(s_pts, close=True, dxfattribs={'layer': 'VOISINS', 'linetype': 'DASHED'})
+                        vcx = sum(p[0] for p in s_pts) / len(s_pts)
+                        vcy = sum(p[1] for p in s_pts) / len(s_pts)
+                        if in_sit_box(vcx, vcy, margin=0.0):
+                            add_text(str(nom_v), vcx, vcy, h=1.5, align='CENTER', layer='TEXTES')
 
         # Lot principal rempli (Hatch solide)
         sit_lot_pts = [world_to_sit(p[0], p[1]) for p in points]

@@ -12,38 +12,82 @@ class WordGenerator:
     def __init__(self, output_dir="."):
         self.output_dir = output_dir
 
-    def _render_plot(self, bornes, voisins=None, zoom_out=False, show_grid_ticks=True):
+    def _render_plot(self, bornes, voisins=None, zoom_out=False, show_grid_ticks=True, scale=5000, all_ilots=None, background_layers=None):
         if not bornes:
             return None
             
-        fig, ax = plt.subplots(figsize=(8, 6) if not zoom_out else (4, 4))
-        
-        # Voisins
-        if voisins:
-            for nom_voisin, pts_voisin in voisins.items():
-                if len(pts_voisin) >= 3:
-                    vx = [p[0] for p in pts_voisin]
-                    vy = [p[1] for p in pts_voisin]
-                    vx.append(vx[0])
-                    vy.append(vy[0])
-                    ax.plot(vx, vy, 'k--', linewidth=0.5, alpha=0.6)
-                    cx = sum(vx[:-1]) / len(pts_voisin)
-                    cy = sum(vy[:-1]) / len(pts_voisin)
-                    ax.text(cx, cy, nom_voisin, fontsize=7 if zoom_out else 9, 
-                            ha='center', va='center', alpha=0.8, fontweight='bold')
-                            
-        # Lot principal
-        xs = [b[0] for b in bornes]
-        ys = [b[1] for b in bornes]
-        xs.append(xs[0])
-        ys.append(ys[0])
-        
-        ax.plot(xs, ys, 'k-', linewidth=2)
-        
         if zoom_out:
-            ax.fill(xs, ys, 'k')
-            
-        if not zoom_out:
+            fig = plt.figure(figsize=(4.5, 3.3))
+            ax = fig.add_axes([0, 0, 1, 1])
+        else:
+            fig, ax = plt.subplots(figsize=(8, 6))
+        
+        xs_lot = [b[0] for b in bornes]
+        ys_lot = [b[1] for b in bornes]
+        min_x_lot, max_x_lot = min(xs_lot), max(xs_lot)
+        min_y_lot, max_y_lot = min(ys_lot), max(ys_lot)
+        lot_width = max_x_lot - min_x_lot
+        lot_height = max_y_lot - min_y_lot
+        cx_lot = (min_x_lot + max_x_lot) / 2.0
+        cy_lot = (min_y_lot + max_y_lot) / 2.0
+
+        if zoom_out:
+            w_view = 0.075 * scale
+            h_view = 0.055 * scale
+            ax_min, ax_max = cx_lot - w_view / 2.0, cx_lot + w_view / 2.0
+            ay_min, ay_max = cy_lot - h_view / 2.0, cy_lot + h_view / 2.0
+
+            if all_ilots:
+                for i_name, ilot_data in all_ilots.items():
+                    for l_name, lot_info in ilot_data.get('lots', {}).items():
+                        l_bornes = lot_info.get('bornes', [])
+                        if len(l_bornes) >= 3:
+                            lx = [p[0] for p in l_bornes] + [l_bornes[0][0]]
+                            ly = [p[1] for p in l_bornes] + [l_bornes[0][1]]
+                            ax.plot(lx, ly, 'k-', linewidth=0.5, alpha=0.75, zorder=2)
+                            
+                            lcx = sum(p[0] for p in l_bornes) / len(l_bornes)
+                            lcy = sum(p[1] for p in l_bornes) / len(l_bornes)
+                            if (ax_min <= lcx <= ax_max) and (ay_min <= lcy <= ay_max):
+                                if math.hypot(lcx - cx_lot, lcy - cy_lot) > max(lot_width, lot_height) * 0.6:
+                                    ax.text(lcx, lcy, str(l_name), fontsize=4.5, ha='center', va='center',
+                                            color='#333333', alpha=0.85, zorder=3)
+            elif voisins:
+                for nom_voisin, pts_voisin in voisins.items():
+                    if len(pts_voisin) >= 3:
+                        vx = [p[0] for p in pts_voisin] + [pts_voisin[0][0]]
+                        vy = [p[1] for p in pts_voisin] + [pts_voisin[0][1]]
+                        ax.plot(vx, vy, 'k-', linewidth=0.5, alpha=0.75, zorder=2)
+                        vcx = sum(p[0] for p in pts_voisin) / len(pts_voisin)
+                        vcy = sum(p[1] for p in pts_voisin) / len(pts_voisin)
+                        ax.text(vcx, vcy, str(nom_voisin), fontsize=4.5, ha='center', va='center',
+                                color='#333333', zorder=3)
+
+            xs = xs_lot + [bornes[0][0]]
+            ys = ys_lot + [bornes[0][1]]
+            ax.plot(xs, ys, 'k-', linewidth=1.2, zorder=10)
+            ax.fill(xs, ys, 'k', zorder=10)
+
+            ax.set_xlim(ax_min, ax_max)
+            ax.set_ylim(ay_min, ay_max)
+        else:
+            if voisins:
+                for nom_voisin, pts_voisin in voisins.items():
+                    if len(pts_voisin) >= 3:
+                        vx = [p[0] for p in pts_voisin]
+                        vy = [p[1] for p in pts_voisin]
+                        vx.append(vx[0])
+                        vy.append(vy[0])
+                        ax.plot(vx, vy, 'k--', linewidth=0.5, alpha=0.6)
+                        cx = sum(vx[:-1]) / len(pts_voisin)
+                        cy = sum(vy[:-1]) / len(pts_voisin)
+                        ax.text(cx, cy, nom_voisin, fontsize=9, 
+                                ha='center', va='center', alpha=0.8, fontweight='bold')
+
+            xs = xs_lot + [bornes[0][0]]
+            ys = ys_lot + [bornes[0][1]]
+            ax.plot(xs, ys, 'k-', linewidth=2)
+
             min_x, max_x = min(xs), max(xs)
             min_y, max_y = min(ys), max(ys)
             width = max_x - min_x
@@ -53,7 +97,6 @@ class WordGenerator:
             ax.set_xlim(min_x - margin_x, max_x + margin_x)
             ax.set_ylim(min_y - margin_y, max_y + margin_y)
         
-        if not zoom_out:
             for i, (x, y) in enumerate(bornes):
                 ax.plot(x, y, 'ko', markersize=3)
                 ax.text(x, y, f' B{i+1}', fontsize=10, verticalalignment='bottom')
@@ -94,13 +137,19 @@ class WordGenerator:
                         arrowprops=dict(facecolor='black', width=2, headwidth=8),
                         fontsize=12, ha='center', va='top')
                         
-        for spine in ax.spines.values():
-            spine.set_linewidth(1)
-            
-        plt.tight_layout()
+        if zoom_out:
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+        else:
+            for spine in ax.spines.values():
+                spine.set_linewidth(1)
+            plt.tight_layout()
         
         buf = BytesIO()
-        plt.savefig(buf, format='png', dpi=200, transparent=True, bbox_inches='tight', pad_inches=0.1)
+        if zoom_out:
+            plt.savefig(buf, format='png', dpi=200, transparent=False, facecolor='white')
+        else:
+            plt.savefig(buf, format='png', dpi=200, transparent=True, bbox_inches='tight', pad_inches=0.1)
         plt.close(fig)
         buf.seek(0)
         return buf

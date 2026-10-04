@@ -242,11 +242,11 @@ class DossierTechniqueWidget(QWidget):
             scale_5000 = self.spin_scale_5000.value()
             scale_500 = self.spin_scale_500.value()
             
-            w_5000 = 0.210 * scale_5000
-            h_5000 = 0.297 * scale_5000
+            w_5000 = 0.075 * scale_5000
+            h_5000 = 0.055 * scale_5000
             
-            w_500 = 0.210 * scale_500
-            h_500 = 0.297 * scale_500
+            w_500 = 0.075 * scale_500
+            h_500 = 0.055 * scale_500
             
             self.map_viewer.update_preview_boxes(centroid.x, centroid.y, w_5000, h_5000, w_500, h_500)
             self.map_viewer.preview_box_5000.show()
@@ -350,6 +350,8 @@ class DossierTechniqueWidget(QWidget):
         data["bornes"] = lot_info.get("bornes", [])
         data["scale_5000"] = self.spin_scale_5000.value()
         data["scale_500"] = self.spin_scale_500.value()
+        data["all_ilots"] = getattr(self.dxf_parser, "ilots", {})
+        data["background_layers"] = getattr(self.dxf_parser, "background_layers", {})
         
         voisins = {}
         for name, v_info in ilot.get("lots", {}).items():
@@ -388,6 +390,8 @@ class DossierTechniqueWidget(QWidget):
         data["bornes"] = lot_info.get("bornes", [])
         data["scale_5000"] = self.spin_scale_5000.value()
         data["scale_500"] = self.spin_scale_500.value()
+        data["all_ilots"] = getattr(self.dxf_parser, "ilots", {})
+        data["background_layers"] = getattr(self.dxf_parser, "background_layers", {})
         
         voisins = {}
         for name, v_info in ilot.get("lots", {}).items():
@@ -421,7 +425,8 @@ class DossierTechniqueWidget(QWidget):
             for name, v_info in ilot.get("lots", {}).items():
                 if name != lot_name:
                     voisins[name] = v_info.get("bornes", [])
-            data["voisins"] = voisins
+            data["all_ilots"] = getattr(self.dxf_parser, "ilots", {})
+            data["background_layers"] = getattr(self.dxf_parser, "background_layers", {})
             
             # Ajouter les échelles et la surface pour le DXF
             data["scale_5000"] = self.spin_scale_5000.value()

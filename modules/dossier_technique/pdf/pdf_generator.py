@@ -234,14 +234,14 @@ class PDFGenerator:
                     border: 1px solid black;
                     background: white;
                     text-align: center;
+                    overflow: hidden;
                 }
                 .map-situation img {
-                    max-width: 100%;
-                    max-height: 145px;
-                    height: auto;
-                    object-fit: contain;
+                    width: 100%;
+                    height: 145px;
+                    object-fit: fill;
                     display: block;
-                    margin: 0 auto;
+                    margin: 0;
                 }
                 .scale-box {
                     border-top: 1px solid black;
@@ -591,23 +591,26 @@ class PDFGenerator:
         </html>
         """
         
-    def render_plot_to_base64(self, bornes, voisins=None, zoom_out=False, show_grid_ticks=True):
+    def render_plot_to_base64(self, bornes, voisins=None, zoom_out=False, show_grid_ticks=True, scale=5000, all_ilots=None, background_layers=None):
         """Génère une image PNG en base64 du plan.
         
-        zoom_out=True  → Plan de situation (1/5000): vue large, lot rempli en noir
+        zoom_out=True  → Plan de situation (1/5000): vue large, projette l'ensemble du lotissement
+                         et remplit le lot sélectionné en noir
         zoom_out=False → Plan de masse (1/500): vue détaillée avec bornes, distances,
-                         et coordonnées sur les axes (comme le document de référence)
+                         et coordonnées sur les axes
         """
         if not bornes:
             return ""
 
         # ── Tailles de figure adaptées au format A3 ──
         if zoom_out:
-            fig, ax = plt.subplots(figsize=(4.8, 4.2))
+            # Aspect ratio 75mm / 55mm = 1.3636
+            fig = plt.figure(figsize=(4.5, 3.3))
+            ax = fig.add_axes([0, 0, 1, 1])
         else:
             fig, ax = plt.subplots(figsize=(8.5, 5.8))
 
-        # ── Calculer la bounding box du lot principal ──
+        # ── Calculer la bounding box et le centroïde du lot principal ──
         xs_lot = [b[0] for b in bornes]
         ys_lot = [b[1] for b in bornes]
         min_x_lot, max_x_lot = min(xs_lot), max(xs_lot)
@@ -617,66 +620,88 @@ class PDFGenerator:
         cx_lot = (min_x_lot + max_x_lot) / 2.0
         cy_lot = (min_y_lot + max_y_lot) / 2.0
 
-        # ── Pour le plan de masse: garder UNIQUEMENT les 2 voisins les plus proches ──
-        if not zoom_out and voisins:
-            def get_neighbor_distance(pts):
-                min_d = min(math.hypot(px - lx, py - ly) for px, py in pts for lx, ly in bornes)
-                vcx = sum(p[0] for p in pts) / len(pts)
-                vcy = sum(p[1] for p in pts) / len(pts)
-                cd = math.hypot(vcx - cx_lot, vcy - cy_lot)
-                return (min_d, cd)
-
-            valid_voisins = [
-                (name, pts) for name, pts in voisins.items()
-                if pts and len(pts) >= 3
-            ]
-            valid_voisins.sort(key=lambda item: get_neighbor_distance(item[1]))
-            voisins = dict(valid_voisins[:2])
-
-        # ── Dessiner les voisins ──
-        if voisins:
-            for nom_voisin, pts_voisin in voisins.items():
-                if len(pts_voisin) >= 3:
-                    vx = [p[0] for p in pts_voisin] + [pts_voisin[0][0]]
-                    vy = [p[1] for p in pts_voisin] + [pts_voisin[0][1]]
-                    lw = 0.8 if zoom_out else 1.2
-                    ax.plot(vx, vy, 'k--', linewidth=lw, alpha=0.65)
-                    # Label du voisin
-                    vcx = sum(p[0] for p in pts_voisin) / len(pts_voisin)
-                    vcy = sum(p[1] for p in pts_voisin) / len(pts_voisin)
-                    fs = 8 if zoom_out else 11
-                    ax.text(vcx, vcy, nom_voisin, fontsize=fs,
-                            ha='center', va='center', alpha=0.85, fontweight='bold')
-
-        # ── Dessiner le lot principal ──
-        xs = xs_lot + [bornes[0][0]]
-        ys = ys_lot + [bornes[0][1]]
-        ax.plot(xs, ys, 'k-', linewidth=2.5 if not zoom_out else 1.5)
-
         if zoom_out:
-            # Plan de situation: remplir le lot en noir
-            ax.fill(xs, ys, 'k')
+            # ── 1. Plan de situation (1/5000) ──
+            # Le cadre sur papier mesure environ 75mm x 55mm.
+            # À l'échelle 1/5000 -> 0.075 * 5000 = 375m de large, 0.055 * 5000 = 275m de haut sur le terrain.
+            w_view = 0.075 * scale
+            h_view = 0.055 * scale
+            ax_min, ax_max = cx_lot - w_view / 2.0, cx_lot + w_view / 2.0
+            ay_min, ay_max = cy_lot - h_view / 2.0, cy_lot + h_view / 2.0
 
-        # ── Définir les limites (zoom) ──
-        if zoom_out:
-            # Plan de situation: vue large englobant tout l'îlot
-            all_x = list(xs_lot)
-            all_y = list(ys_lot)
-            if voisins:
-                for pts_v in voisins.values():
-                    if pts_v:
-                        all_x.extend(p[0] for p in pts_v)
-                        all_y.extend(p[1] for p in pts_v)
-            ax_min, ax_max = min(all_x), max(all_x)
-            ay_min, ay_max = min(all_y), max(all_y)
-            view_w = ax_max - ax_min
-            view_h = ay_max - ay_min
-            margin = max(view_w, view_h) * 0.15
-            margin = max(margin, max(lot_width, lot_height) * 1.5)
-            ax.set_xlim(ax_min - margin, ax_max + margin)
-            ax.set_ylim(ay_min - margin, ay_max + margin)
+            # NOTE: Les calques d'arrière-plan (background_layers) sont retirés de la projection 1/5000.
+
+            # ── Dessiner tous les lots du lotissement ──
+            if all_ilots:
+                for i_name, ilot_data in all_ilots.items():
+                    for l_name, lot_info in ilot_data.get('lots', {}).items():
+                        l_bornes = lot_info.get('bornes', [])
+                        if len(l_bornes) >= 3:
+                            lx = [p[0] for p in l_bornes] + [l_bornes[0][0]]
+                            ly = [p[1] for p in l_bornes] + [l_bornes[0][1]]
+                            ax.plot(lx, ly, 'k-', linewidth=0.5, alpha=0.75, zorder=2)
+                            
+                            # Afficher le numéro de lot si le lot est dans le champ de vision
+                            lcx = sum(p[0] for p in l_bornes) / len(l_bornes)
+                            lcy = sum(p[1] for p in l_bornes) / len(l_bornes)
+                            if (ax_min <= lcx <= ax_max) and (ay_min <= lcy <= ay_max):
+                                # Ne pas afficher le texte par-dessus le lot principal noir
+                                if math.hypot(lcx - cx_lot, lcy - cy_lot) > max(lot_width, lot_height) * 0.6:
+                                    ax.text(lcx, lcy, str(l_name), fontsize=4.5, ha='center', va='center',
+                                            color='#333333', alpha=0.85, zorder=3)
+            elif voisins:
+                for nom_voisin, pts_voisin in voisins.items():
+                    if len(pts_voisin) >= 3:
+                        vx = [p[0] for p in pts_voisin] + [pts_voisin[0][0]]
+                        vy = [p[1] for p in pts_voisin] + [pts_voisin[0][1]]
+                        ax.plot(vx, vy, 'k-', linewidth=0.5, alpha=0.75, zorder=2)
+                        vcx = sum(p[0] for p in pts_voisin) / len(pts_voisin)
+                        vcy = sum(p[1] for p in pts_voisin) / len(pts_voisin)
+                        ax.text(vcx, vcy, str(nom_voisin), fontsize=4.5, ha='center', va='center',
+                                color='#333333', zorder=3)
+
+            # ── Dessiner le lot principal rempli en noir ──
+            xs = xs_lot + [bornes[0][0]]
+            ys = ys_lot + [bornes[0][1]]
+            ax.plot(xs, ys, 'k-', linewidth=1.2, zorder=10)
+            ax.fill(xs, ys, 'k', zorder=10)
+
+            ax.set_xlim(ax_min, ax_max)
+            ax.set_ylim(ay_min, ay_max)
+
         else:
-            # Plan de masse: vue centrée sur le lot et ses 2 voisins les plus proches
+            # ── 2. Plan de masse (1/500) ──
+            if voisins:
+                def get_neighbor_distance(pts):
+                    min_d = min(math.hypot(px - lx, py - ly) for px, py in pts for lx, ly in bornes)
+                    vcx = sum(p[0] for p in pts) / len(pts)
+                    vcy = sum(p[1] for p in pts) / len(pts)
+                    cd = math.hypot(vcx - cx_lot, vcy - cy_lot)
+                    return (min_d, cd)
+
+                valid_voisins = [
+                    (name, pts) for name, pts in voisins.items()
+                    if pts and len(pts) >= 3
+                ]
+                valid_voisins.sort(key=lambda item: get_neighbor_distance(item[1]))
+                voisins = dict(valid_voisins[:2])
+
+                for nom_voisin, pts_voisin in voisins.items():
+                    if len(pts_voisin) >= 3:
+                        vx = [p[0] for p in pts_voisin] + [pts_voisin[0][0]]
+                        vy = [p[1] for p in pts_voisin] + [pts_voisin[0][1]]
+                        ax.plot(vx, vy, 'k--', linewidth=1.2, alpha=0.65)
+                        vcx = sum(p[0] for p in pts_voisin) / len(pts_voisin)
+                        vcy = sum(p[1] for p in pts_voisin) / len(pts_voisin)
+                        ax.text(vcx, vcy, nom_voisin, fontsize=11,
+                                ha='center', va='center', alpha=0.85, fontweight='bold')
+
+            # Dessiner le lot principal
+            xs = xs_lot + [bornes[0][0]]
+            ys = ys_lot + [bornes[0][1]]
+            ax.plot(xs, ys, 'k-', linewidth=2.5)
+
+            # Définir les limites du plan de masse
             all_x = list(xs_lot)
             all_y = list(ys_lot)
             if voisins:
@@ -693,14 +718,12 @@ class PDFGenerator:
             ax.set_xlim(ax_min - margin_x, ax_max + margin_x)
             ax.set_ylim(ay_min - margin_y, ay_max + margin_y)
 
-        # ── Bornes + distances (plan de masse uniquement) ──
-        if not zoom_out:
+            # Bornes + distances
             for i, (bx, by) in enumerate(bornes):
                 ax.plot(bx, by, 'ko', markersize=5)
                 ax.text(bx, by, f'  B{i+1}', fontsize=11, fontweight='bold',
                         verticalalignment='bottom')
 
-                # Distance sur le segment vers la borne suivante
                 p1 = bornes[i]
                 p2 = bornes[(i + 1) % len(bornes)]
                 dist = math.hypot(p2[0] - p1[0], p2[1] - p1[1])
@@ -763,17 +786,21 @@ class PDFGenerator:
         # ── Bordures ──
         if zoom_out:
             for spine in ax.spines.values():
-                spine.set_linewidth(1)
+                spine.set_visible(False)
         else:
             # Plan de masse: pas de cadre rectangulaire autour du dessin (comme le document de référence)
             for spine in ax.spines.values():
                 spine.set_visible(False)
 
-        plt.tight_layout()
+        if not zoom_out:
+            plt.tight_layout()
 
         buf = BytesIO()
-        plt.savefig(buf, format='png', dpi=200, transparent=True,
-                    bbox_inches='tight', pad_inches=0.08)
+        if zoom_out:
+            plt.savefig(buf, format='png', dpi=200, transparent=False, facecolor='white')
+        else:
+            plt.savefig(buf, format='png', dpi=200, transparent=True,
+                        bbox_inches='tight', pad_inches=0.08)
         plt.close(fig)
 
         return base64.b64encode(buf.getvalue()).decode('utf-8')
@@ -866,7 +893,15 @@ class PDFGenerator:
             surface_ha_a_ca_formatted_text=self._format_surface_text(surface_val),
             bornes=bornes,
             bornes_calc=bornes_calc,
-            img_situation=self.render_plot_to_base64(bornes, data.get("voisins", {}), zoom_out=True, show_grid_ticks=False),
+            img_situation=self.render_plot_to_base64(
+                bornes,
+                data.get("voisins", {}),
+                zoom_out=True,
+                show_grid_ticks=False,
+                scale=data.get("scale_5000", 5000),
+                all_ilots=data.get("all_ilots"),
+                background_layers=data.get("background_layers")
+            ),
             img_masse=self.render_plot_to_base64(bornes, data.get("voisins", {}), zoom_out=False, show_grid_ticks=True),
             echelle_1=v(data.get("echelle_1")),
             echelle_2=v(data.get("echelle_2"))
