@@ -425,6 +425,7 @@ class DossierTechniqueWidget(QWidget):
             for name, v_info in ilot.get("lots", {}).items():
                 if name != lot_name:
                     voisins[name] = v_info.get("bornes", [])
+            data["voisins"] = voisins
             data["all_ilots"] = getattr(self.dxf_parser, "ilots", {})
             data["background_layers"] = getattr(self.dxf_parser, "background_layers", {})
             

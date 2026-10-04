@@ -418,10 +418,12 @@ class DXFExporter:
             cand_v = {}
             for i_name, ilot_data in all_ilots.items():
                 for l_name, lot_info in ilot_data.get('lots', {}).items():
+                    if str(l_name) == str(lot):
+                        continue
                     l_bornes = lot_info.get('bornes', [])
                     if len(l_bornes) >= 3:
                         min_d = min(math.hypot(px - lx, py - ly) for px, py in l_bornes for lx, ly in points)
-                        if 0.1 < min_d < 80.0:
+                        if min_d < 80.0:
                             cand_v[str(l_name)] = l_bornes
             if cand_v:
                 def n_dist(pts):
@@ -438,20 +440,13 @@ class DXFExporter:
 
         for nom_v, pts_v in masse_voisins.items():
             m_pts = [world_to_masse(p[0], p[1]) for p in pts_v]
-            # Clipper m_pts au cadre du plan de masse pour éviter tout trait remontant vers le bloc 1/5000
-            clipped_m_pts = [
-                (max(ox + 8.0, min(sep_x - 8.0, pt[0])),
-                 max(masse_bot_limit, min(masse_top_limit, pt[1])))
-                for pt in m_pts
-            ]
-            msp.add_lwpolyline(clipped_m_pts, close=True,
+            msp.add_lwpolyline(m_pts, close=True,
                                dxfattribs={'layer': 'VOISINS', 'linetype': 'DASHED'})
             # Label voisin centré
             vc_x = sum(p[0] for p in pts_v) / len(pts_v)
             vc_y = sum(p[1] for p in pts_v) / len(pts_v)
             vmx, vmy = world_to_masse(vc_x, vc_y)
-            if (ox + 10.0 <= vmx <= sep_x - 10.0) and (masse_bot_limit <= vmy <= masse_top_limit):
-                add_text(nom_v, vmx, vmy, t_small, align='CENTER')
+            add_text(str(nom_v), vmx, vmy, t_small, align='CENTER')
 
         # ── 5.B Carroyage cadastral (Croix + aux coordonnées rondes) ──
         # Déterminer la zone de coordonnées couverte
